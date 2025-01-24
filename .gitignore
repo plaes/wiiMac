@@ -35,7 +35,6 @@ dist/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
 
 # Ignore Visual Studio Code configuration (if used)
 .vscode/
