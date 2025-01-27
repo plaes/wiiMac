@@ -27,16 +27,21 @@ ifneq ($(LDSCRIPT),)
 $(TARGET): $(LDSCRIPT)
 endif
 
-%.o: %.c
+bin/%.o: src/%.c
 	@echo "  COMPILE   $<"
 	@mkdir -p $(DEPDIR)
 	@$(CC) $(CFLAGS) $(DEFINES) -Wp,-MMD,$(DEPDIR)/$(*F).d,-MQ,"$@",-MP -c $< -o $@
 
-%.o: %.s
+src/usb/%.o: src/usb/%.c
+	@echo "  COMPILE   $<"
+	@mkdir -p $(DEPDIR)
+	@$(CC) $(CFLAGS) $(DEFINES) -Wp,-MMD,$(DEPDIR)/$(*F).d,-MQ,"$@",-MP -c $< -o $@
+
+bin/%.o: src/%.s
 	@echo "  ASSEMBLE  $<"
 	@$(CC) $(CFLAGS) $(DEFINES) $(ASFLAGS) -c $< -o $@
 
-%.o: %.S
+bin/%.o: src/%.S
 	@echo "  ASSEMBLE  $<"
 	@$(CC) $(CFLAGS) $(DEFINES) $(ASFLAGS) -c $< -o $@
 
@@ -47,4 +52,3 @@ clean:
 -include $(DEPDIR)/*
 
 .PHONY: clean
-

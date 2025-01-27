@@ -10,6 +10,6 @@ CFLAGS += -D _DU_CORE #@ u/c/core.c
 #CFLAGS += -D _DU_CORE_ADD #@ u/c/core.c
 CFLAGS += -D _DU_USB #@ u/c/usb.c
 
-OBJS += usb/host/ohci.o usb/core/core.o usb/core/usb.o \
-		usb/lib/list.o \
-		usb/drivers/class/hid.o
+OBJS += src/usb/host/ohci.o src/usb/core/core.o src/usb/core/usb.o \
+		src/usb/lib/list.o \
+		src/usb/drivers/class/hid.o

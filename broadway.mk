@@ -9,4 +9,3 @@ CFLAGS += -ffreestanding -ffunction-sections
 CFLAGS += -Wall -Wextra -O0 -pipe
 ASFLAGS =
 LDFLAGS = -mcpu=750 -m32 -n -z muldefs -nostartfiles -nodefaultlibs -Wl,-gc-sections
-
