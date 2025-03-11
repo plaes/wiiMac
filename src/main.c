@@ -31,6 +31,45 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "sha1.h"
 #include "hollywood.h"
 
+static char ascii(char s) {
+	if(s < 0x20) return '.';
+	if(s > 0x7E) return '.';
+	return s;
+}
+
+void hexdump(void *d, int len) {
+	u8 *data;
+	int i, off;
+	data = (u8*)d;
+	for (off=0; off<len; off += 16) {
+
+		// Print address
+		void *addr = (void *)((u32)data + off);
+		printf("0x%08x  ", addr);
+
+		// Print hex interpretation
+		for (i=0; i<16; i++) {
+            if ((i+off)>=len) {
+                printf("   ");
+            } else {
+                printf("%02x ", data[off+i]);
+            }
+        }
+
+		printf(" ");
+
+		// Print ASCII interpretation
+		for(i=0; i<16; i++) {
+			if((i+off)>=len) {
+				printf(" ");
+			} else {
+				printf("%c", ascii(data[off+i]));
+			}
+		}
+		printf("\n");
+	}
+}
+
 int main(void)
 {
   while(1) {

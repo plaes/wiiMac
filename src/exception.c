@@ -68,9 +68,9 @@ void exception_init(void)
 	for (vector = 0x100; vector < 0x2000; vector += 0x10) {
 		u32 *insn = (u32 *)(0x80000000 + vector);
 
-		insn[0] = 0xbc002000;			// stmw 0,0x2000(0)
+		insn[0] = 0xbc002000;				// stmw 0,0x2000(0)
 		insn[1] = 0x38600000 | (u32)vector;	// li 3,vector
-		insn[2] = 0x48002202;			// ba 0x2200
+		insn[2] = 0x48002202;				// ba 0x2200
 		insn[3] = 0;
 	}
 	sync_before_exec((void *)0x80000100, 0x1f00);
