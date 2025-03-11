@@ -22,19 +22,21 @@ Copyright (C) 2009		John Kelley <wiidev@kelley.ca>
 typedef struct {
         u32 x, y;
         u32 width, height;
-        u8 *raw_data;
         u32 *yuv_data;  
         u32 active;
         u8 has_alpha;
 } gfx_rect;
 
-#define CONSOLE_WIDTH 500
-#define CONSOLE_LINES 10
-#define CONSOLE_Y 100
+#define CONSOLE_X  0
+#define CONSOLE_Y 0
+#define CONSOLE_WIDTH 640
+#define CONSOLE_HEIGHT 480
+#define CONSOLE_COLS (CONSOLE_WIDTH / CONSOLE_CHAR_WIDTH)
+#define CONSOLE_LINES (CONSOLE_HEIGHT / CONSOLE_ROW_HEIGHT)
 
-#define CONSOLE_X  58
+#define CONSOLE_CHAR_WIDTH 8
 #define CONSOLE_CHAR_HEIGHT 16
-#define CONSOLE_ROW_HEIGHT (CONSOLE_CHAR_HEIGHT + 1) 
+#define CONSOLE_ROW_HEIGHT (CONSOLE_CHAR_HEIGHT + 1)
 
 static u32 *xfb = NULL;
 static int y_add = 0;
@@ -103,10 +105,8 @@ void fill_rect(int x, int y, int w, int h, u8 r, u8 g, u8 b) {
 
 void gfx_draw_rect(gfx_rect *n) {
         u32 y;
-        gfx_rect *d_rect;
+        gfx_rect *d_rect = n;
         u32 *fb = xfb;
-
-        d_rect = n;
 
         fb += ((d_rect->y + y_add) * (640 >> 1));
         fb += (d_rect->x >> 1);
@@ -174,10 +174,10 @@ void print_str(const char *str, size_t len) {
 	}
 }
 
-int gfx_printf(const char *fmt, ...)
+int console_printf(const char *fmt, ...)
 {
 	va_list args;
-	char buffer[40];
+	char buffer[CONSOLE_COLS];
 	int i;
 
 	memset(buffer, 0, sizeof buffer);
