@@ -72,10 +72,15 @@ void hexdump(void *d, int len) {
 
 int main(void)
 {
-  while(1) {
-    blink();
-    udelay(1000*1000);
-  }
+	__asm__(
+		"lis 5,0x0d80\n\t"
+		"ori 5,5,0x00c0\n\t"
+		"lwz 4,0(5)\n\t"
+		"sync\n\t"
+		"xori 4,4,0x20\n\t"
+		"stw  4,0(5)\n\t"
+		"eieio\n\t"
+	);
 
 	return 0;
 }
