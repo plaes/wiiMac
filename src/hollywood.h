@@ -16,8 +16,8 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* Hollywood Registers */
 
-#define		HW_PPC_REG_BASE		0xd000000
-#define		HW_REG_BASE		0xd800000
+#define		HW_PPC_REG_BASE		0x0d000000
+#define		HW_REG_BASE		0x0d800000
 
 // The PPC can only see the first three IPC registers
 #define		HW_IPC_PPCMSG		(HW_REG_BASE + 0x000)
@@ -101,7 +101,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* NAND Registers */
 
-#define		NAND_REG_BASE		0xd010000
+#define		NAND_REG_BASE		0x0d010000
 
 #define		NAND_CMD		(NAND_REG_BASE + 0x000)
 #define		NAND_STATUS		NAND_CMD
@@ -115,7 +115,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* AES Registers */
 
-#define		AES_REG_BASE		0xd020000
+#define		AES_REG_BASE		0x0d020000
 
 #define		AES_CMD			(AES_REG_BASE + 0x000)
 #define		AES_SRC			(AES_REG_BASE + 0x004)
@@ -125,7 +125,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* SHA-1 Registers */
 
-#define		SHA_REG_BASE		0xd030000
+#define		SHA_REG_BASE		0x0d030000
 
 #define		SHA_CMD			(SHA_REG_BASE + 0x000)
 #define		SHA_SRC			(SHA_REG_BASE + 0x004)
@@ -137,13 +137,13 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* SD Host Controller Registers */
 
-#define		SDHC_REG_BASE		0xd070000
+#define		SDHC_REG_BASE		0x0d070000
 
 /* OHCI0 Registers */
-#define 	OHCI0_REG_BASE 		0xd050000
+#define 	OHCI0_REG_BASE 		0x0d050000
 
 /* OHCI1 Registers */
-#define 	OHCI1_REG_BASE 		0xd060000
+#define 	OHCI1_REG_BASE 		0x0d060000
 
 #define 	OHCI_HC_REVISION 			0x00
 #define 	OHCI_HC_CONTROL 			0x04
@@ -175,7 +175,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 #define 	OHCI_HC_RH_PORT_STATUS_2 	0x58
 
 /* EHCI Registers */
-#define 	EHCI_REG_BASE 		0xd040000
+#define 	EHCI_REG_BASE 		0x0d040000
 
 /* stolen from mikep2 patched linux kernel: drivers/usb/host/ohci-mipc.c */
 #define		EHCI_CTL			(EHCI_REG_BASE + 0xCC)
@@ -184,7 +184,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* EXI Registers */
 
-#define		EXI_REG_BASE		0xd806800
+#define		EXI_REG_BASE		0x0d806800
 #define		EXI0_REG_BASE		(EXI_REG_BASE+0x000)
 #define		EXI1_REG_BASE		(EXI_REG_BASE+0x014)
 #define		EXI2_REG_BASE		(EXI_REG_BASE+0x028)
@@ -211,7 +211,7 @@ Copyright (C) 2008, 2009	John Kelley <wiidev@kelley.ca>
 
 /* MEMORY CONTROLLER Registers */
 
-#define		MEM_REG_BASE		0xd8b4000
+#define		MEM_REG_BASE		0x0d8b4000
 #define		MEM_PROT		(MEM_REG_BASE+0x20a)
 #define		MEM_PROT_START		(MEM_REG_BASE+0x20c)
 #define		MEM_PROT_END		(MEM_REG_BASE+0x20e)

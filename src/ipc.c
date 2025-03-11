@@ -40,7 +40,7 @@ static ipc_infohdr *infohdr;
 
 static u32 cur_tag;
 
-#define		HW_REG_BASE			0xd000000
+#define		HW_REG_BASE			0x0d000000
 
 #define		HW_IPC_PPCMSG		(HW_REG_BASE + 0x000) //PPC to ARM
 #define		HW_IPC_PPCCTRL		(HW_REG_BASE + 0x004)
@@ -79,7 +79,7 @@ static inline void poke_outhead(u16 num)
 int ipc_initialize(void)
 {
 
-	infohdr = (ipc_infohdr*)(read32(0x13fffffc)|0x80000000);
+	infohdr = (ipc_infohdr*)(read32(0x13fffffc));
 	sync_before_read((void*)infohdr, sizeof(ipc_infohdr));
 
 	printf("IPC: infoheader at %p %08x\n", infohdr);
@@ -92,10 +92,8 @@ int ipc_initialize(void)
 		printf("IPC: unknown IPC version %d\n",infohdr->version);
 		return -1;
 	}
-
-	in_queue = (void*)(((u32)infohdr->ipc_in)|0x80000000);
-	out_queue = (void*)(((u32)infohdr->ipc_out)|0x80000000);
-
+	in_queue = (void*)(((u32)infohdr->ipc_in));
+	out_queue = (void*)(((u32)infohdr->ipc_out));
 	in_size = infohdr->ipc_in_size;
 	out_size = infohdr->ipc_out_size;
 

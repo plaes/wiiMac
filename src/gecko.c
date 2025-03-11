@@ -13,7 +13,7 @@ Copyright (C) 2009		Andre Heider "dhewg" <dhewg@wiibrew.org>
 #include "bootmii_ppc.h"
 #include "printf.h"
 
-#define		EXI_REG_BASE			0xd806800
+#define		EXI_REG_BASE			0x0d806800
 #define		EXI0_REG_BASE			(EXI_REG_BASE+0x000)
 #define		EXI1_REG_BASE			(EXI_REG_BASE+0x014)
 #define		EXI2_REG_BASE			(EXI_REG_BASE+0x028)

@@ -163,7 +163,7 @@ void VIDEO_Shutdown(void)
 	write16(R_VIDEO_STATUS1, 0);
 }
 
-#define		HW_REG_BASE		0xd800000
+#define		HW_REG_BASE		0x0d800000
 
 // PPC side of GPIO1 (Starlet can access this too)
 // Output state

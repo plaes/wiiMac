@@ -137,12 +137,12 @@ _realmode_vector:
     mtspr DBAT1U,4
     isync
 
-    // set DBAT2 for 128KB@0x0D800000,
-    // real 0x0D800000 (start of HW registers), WIMG=0101, R/W
-    lis 3,0x0D80
+    // set DBAT2 for 256MB@0x0C000000,
+    // real 0x0C000000 (earliest HW registers?), WIMG=0101, R/W
+    lis 3,0x0C00
     ori 3,3,0x2a
-    lis 4,0x0D80
-    ori 4,4,0x003
+    lis 4,0x0C00
+    ori 4,4,0x1FFF
     isync
     mtspr DBAT2L,3
     mtspr DBAT2U,4
