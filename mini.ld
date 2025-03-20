@@ -19,11 +19,11 @@ PHDRS {
 }
 
 SECTIONS {
-	. = 0x00003400;
+	. = 0x01400000; # @ 20 MB
 
 	.realmode : { *(.realmode) } :realmode = 0
 
-	. = 0x00004000;
+	. = 0x01400C00; # Enough room for realmode to be loaded?
 
 	.start : AT(ADDR(.start)) { bin/crt0.o(*) } :app = 0
 

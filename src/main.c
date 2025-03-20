@@ -16,6 +16,7 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "bootmii_ppc.h"
 #include "string.h"
 #include "ipc.h"
+#include "macho_loader.h"
 #include "mini_ipc.h"
 #include "nandfs.h"
 #include "fat.h"
@@ -92,6 +93,31 @@ int main(void) {
 	// VIDEO_Init(vmode);
 	// VIDEO_SetFrameBuffer(get_xfb());
 	// VISetupEncoder();
+
+	printf("Print kernel file load\n");
+	hexdump((void *)kernelFileLoadAddress, 32);
+
+	printf("Print kernel entry\n");
+	hexdump((void *)0x00088ed0, 32);
+
+	int ret;
+
+	ret = load_mach_kernel("/mkd");
+	if (ret != 0) {
+		return -1;
+	}
+
+
+	printf("Print kernel file load\n");
+	hexdump((void *)kernelFileLoadAddress, 32);
+
+	printf("Print kernel entry\n");
+	hexdump((void *)0x00088ed0, 32);
+
+	ret = start_mach_kernel();
+	if (ret != 0) {
+		return -1;
+	}
 
     return 0;
 }
