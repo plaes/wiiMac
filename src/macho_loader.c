@@ -109,14 +109,14 @@ typedef struct ppc_thread_state {
     u32 vrsave;	                /* Vector Save Register */
 } ppc_thread_state_t;
 
-u32 kernelEntryPoint;
+static u32 kernelEntryPoint;
 
-int decode_mach_kernel(u8 *fbuf);
-int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf);
-int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf);
-int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
-int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf);
-int handle_lc_unixthread(load_command_t *load_cmd);
+static int decode_mach_kernel(u8 *fbuf);
+static int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf);
+static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf);
+static int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
+static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf);
+static int handle_lc_unixthread(load_command_t *load_cmd);
 
 int load_mach_kernel(const char *kernel_path) {
     FATFS fs;
@@ -151,7 +151,7 @@ int load_mach_kernel(const char *kernel_path) {
     return decode_mach_kernel(fbuf);
 }
 
-int decode_mach_kernel(u8 *fbuf) {
+static int decode_mach_kernel(u8 *fbuf) {
     mach_header_t *header = (mach_header_t *)fbuf;
     printf("magic: %X\n", header->magic);
     printf("cpu_type: %d\n", header->cputype);
@@ -179,7 +179,7 @@ int decode_mach_kernel(u8 *fbuf) {
     return 0;
 }
 
-int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf) {
     int ret = 0;
     switch (load_cmd->cmd) {
         case LC_SEGMENT:
@@ -200,11 +200,15 @@ int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf) {
     return ret;
 }
 
-int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
     printf("LC_SEGMENT %d\n", load_cmd->cmdsize);
 
     segment_command_t *segment = (segment_command_t *)load_cmd;
     printf("Handle %s\n", segment->segname);
+
+    // if (strcmp(segment->segname, "__VECTORS") == 0) {
+    //     return 0;
+    // }
 
     int ret = load_segment(fbuf, segment->fileoff, segment->filesize, segment->vmaddr, segment->vmsize);
     if (ret != 0) {
@@ -215,10 +219,11 @@ int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
     return 0;
 }
 
-int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
+static int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
     u8 *src = fbuf + foff;
     u8 *dst = (u8*)vmaddr;
-    printf("0x%08x -> 0x%08x, %ul\n", src, dst, fsize);
+
+    printf("memcpy 0x%08x-0x%08x to 0x%08x-0x%08x\n", src, src + fsize, dst, dst + fsize);
 
     if (fsize == 0) {
         return -1;
@@ -233,7 +238,7 @@ int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
     return 0;
 }
 
-int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
     printf("LC_SYMTAB %d\n", load_cmd->cmdsize);
 
     symtab_command_t *symtab = (symtab_command_t *)load_cmd;
@@ -241,7 +246,7 @@ int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
     u32 totalSize = symSize + symtab->strsize;
     u32 symtabSize = totalSize + sizeof(symtab_command_t);
     u8 *symtabAddr = malloc(symtabSize);
-    printf("Address: 0x%08x, size: %u\n", symtabAddr, symtabSize);
+    printf("0x%08x-0x%08x\n", symtabAddr, symtabAddr+symtabSize);
 
     symtab_command_t *symtabSave = (symtab_command_t *)symtabAddr;
     u32 symOff = (u32)symtabAddr + sizeof(struct symtab_command);
@@ -255,7 +260,7 @@ int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
     return 0;
 }
 
-int handle_lc_unixthread(load_command_t *load_cmd) {
+static int handle_lc_unixthread(load_command_t *load_cmd) {
     printf("LC_UNIXTHREAD %d\n", load_cmd->cmdsize);
 
     ppc_thread_state_t *thread_state = (ppc_thread_state_t *)((u8*)load_cmd + sizeof(thread_command_t));
@@ -266,10 +271,10 @@ int handle_lc_unixthread(load_command_t *load_cmd) {
     return 0;
 }
 
-int start_mach_kernel() {
-    long msr, cnt;
+int start_mach_kernel(boot_args_t *boot_args) {
+    long msr;
 
-    printf("\nCall Kernel @ 0x%08x; boot args: 0x00400000, signature: %08x\n", kernelEntryPoint, kMacOSXSignature);
+    printf("\nCall Kernel @ 0x%08x; boot args: 0x%08x, signature: %08x\n", kernelEntryPoint, (u32)boot_args, kMacOSXSignature);
 
     msr = 0x00001000;
     __asm__ volatile("mtmsr %0" : : "r" (msr));
@@ -280,7 +285,7 @@ int start_mach_kernel() {
     __asm__ volatile("sync");
     __asm__ volatile("eieio");
 
-    (*(void (*)())kernelEntryPoint)(0x00400000, kMacOSXSignature);
+    (*(void (*)())kernelEntryPoint)((u32)boot_args, kMacOSXSignature);
 
     return -1;
 }
