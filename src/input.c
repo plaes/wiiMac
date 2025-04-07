@@ -17,7 +17,7 @@ Copyright (C) 2009		bLAStY <blasty@bootmii.org>
 #include "input.h"
 #include "string.h"
 
-#define PADREG(x) (0xCD006400 + (x)*4)
+#define PADREG(x) (0x0D006400 + (x)*4)
 
 static GC_Pad _pad;
 

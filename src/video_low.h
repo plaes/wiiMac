@@ -16,7 +16,7 @@ of Crazy Nation and the GC Linux project.
 #ifndef VIDEO_LOW_H
 #define VIDEO_LOW_H
 
-#define MEM_VIDEO_BASE               (0xCC002000)           ///< Memory address of Video Interface
+#define MEM_VIDEO_BASE               (0x0C002000)           ///< Memory address of Video Interface
 #define MEM_VIDEO_BASE_PTR           (u32*)MEM_VIDEO_BASE   ///< Pointer to Video Interface
 
 // 32-bit-wide registers
