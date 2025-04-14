@@ -148,6 +148,17 @@ _realmode_vector:
     mtspr DBAT2U,4
     isync
 
+    // set DBAT3 for 256MB@0x80000000,
+    // real 0x00000000 (used for video), WIMG=0101, R/W
+    lis 3,0x0000
+    ori 3,3,0x2a
+    lis 4,0x8000
+    ori 4,4,0x07FF
+    isync
+    mtspr DBAT3L,3
+    mtspr DBAT3U,4
+    isync
+
 	// set MSR[DR:IR] = 11, jump to _start
 	lis 3,_start@h
 	ori 3,3,_start@l

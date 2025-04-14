@@ -3,6 +3,7 @@
 //
 
 #include "bootmii_ppc.h"
+#include "console.h"
 #include "ff.h"
 #include "macho_loader.h"
 #include "malloc.h"
@@ -119,18 +120,18 @@ int load_mach_kernel(const char *kernel_path) {
     FRESULT res;
     FIL fp;
 
-    printf("Loading Mach Kernel from SD:%s...\n", kernel_path);
+    console_println("Loading Mach Kernel from SD:%s...", kernel_path);
 
     // Mount the SD card
     res = f_mount(0, &fs);
     if (res != FR_OK) {
-        printf("Failed to mount SD card! Error code: %d\n", res);
+        console_println("Failed to mount SD card! Error code: %d", res);
         return -1;
     }
 
     res = f_open(&fp, kernel_path, FA_READ);
     if (res != FR_OK) {
-        printf("Failed to open kernel at SD:%s\n", kernel_path);
+        console_println("Failed to open kernel at SD:%s", kernel_path);
         return -1;
     }
 
@@ -140,7 +141,7 @@ int load_mach_kernel(const char *kernel_path) {
     u32 bytesRead;
     res = f_read(&fp, fbuf, fsize, &bytesRead);
     if (res != FR_OK && bytesRead == fsize) {
-        printf("Failed to read kernel at SD:%s\n", kernel_path);
+        console_println("Failed to read kernel at SD:%s", kernel_path);
         return -1;
     }
 

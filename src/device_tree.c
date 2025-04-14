@@ -58,18 +58,21 @@ void build_device_tree() {
     device_tree_end = device_tree_start;
 
     // /
-    create_node(/*nProps=*/4, /*nChildren=*/4);
+    create_node(/*nProps=*/5, /*nChildren=*/4);
     {
+      	const char* name = "device-tree";
+        add_property("name", name, strlen(name) + 1);
+
         u32 address_cells = 1;
         add_property("#address-cells", &address_cells, sizeof(address_cells));
 
         u32 size_cells = 1;
         add_property("#size-cells", &size_cells, sizeof(size_cells));
 
-        const char* compatible = "APPL,PowerMac G3";
+        const char* compatible = "wiiMac1,1";
         add_property("compatible", compatible, strlen(compatible) + 1);
 
-        const char* model = "Power Macintosh";
+        const char* model = "Nintendo Wii";
         add_property("model", model, strlen(model) + 1);
 
         // /chosen
@@ -78,7 +81,7 @@ void build_device_tree() {
             const char* name = "chosen";
             add_property("name", name, strlen(name) + 1);
 
-            const char* boot_args = "-v";
+            const char* boot_args = "-v debug=0x02";
             add_property("boot-args", boot_args, strlen(boot_args) + 1);
         }
 
@@ -175,6 +178,21 @@ void build_device_tree() {
                     0x0c000000
                 };
                 add_property("AAPL,address", appl_address, sizeof(appl_address));
+
+//                // /hollywood/mac-io/escc
+//            	create_node(/*nProps=*/3, /*nChildren=*/0);
+//            	{
+//                	const char* name = "escc";
+//                	add_property("name", name, strlen(name) + 1);
+//
+//                    u32 address_cells = 1;
+//                	add_property("#address-cells", &address_cells, sizeof(address_cells));
+//
+//                    u32 reg[2] = {
+//                    	0x0d806800, 0x01000000
+//                	};
+//                	add_property("reg", reg, sizeof(reg));
+//                }
             }
         }
     }

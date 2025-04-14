@@ -14,7 +14,7 @@ void set_up_boot_args() {
 
     boot_args->Version = 1;
 
-    sprintf(boot_args->CommandLine, "-v debug=0x8\0");
+    sprintf(boot_args->CommandLine, "-v debug=0x02\0");
 
     for (int i = 0; i < 26; i++) {
         boot_args->PhysicalDRAM[i].base = 0;
@@ -29,19 +29,12 @@ void set_up_boot_args() {
     boot_args->PhysicalDRAM[1].base = 0x10000000;
     boot_args->PhysicalDRAM[1].size = 64 * 1024 * 1024;
 
-    boot_args->Video.v_baseAddr = 0;
+    boot_args->Video.v_baseAddr = (u32)get_xfb();
     boot_args->Video.v_display = 0;
-    boot_args->Video.v_rowBytes = 0;
-    boot_args->Video.v_width = 0;
-    boot_args->Video.v_height = 0;
-    boot_args->Video.v_depth = 0;
-
-//    boot_args->Video.v_baseAddr = (u32)get_xfb();
-//    boot_args->Video.v_display = 0;
-//    boot_args->Video.v_rowBytes = 4 * 640;
-//    boot_args->Video.v_width = 640;
-//    boot_args->Video.v_height = 480;
-//    boot_args->Video.v_depth = 32;
+    boot_args->Video.v_rowBytes = 2 * 640;
+    boot_args->Video.v_width = 640;
+    boot_args->Video.v_height = 480;
+    boot_args->Video.v_depth = 16;
 
     boot_args->machineType = 0;
 

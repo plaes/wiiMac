@@ -90,6 +90,22 @@ static void patch_memory_nop(u32 *src) {
 	sync_before_exec(src, 1 * 4);
 }
 
+static void patch_memory_blink(u32 *src) {
+	// Blink drive light
+	src[0] = 0x3CA00D80;
+	src[1] = 0x60A500C0;
+	src[2] = 0x80850000;
+	src[3] = 0x7C0004AC;
+	src[4] = 0x68840020;
+	src[5] = 0x90850000;
+	src[6] = 0x7C0004A6;
+
+	// Infinite loop
+	src[7] = 0x48000000;
+
+	sync_before_exec(src, 7 * 4);
+}
+
 static void patch_exception_handler(u32 *vector) {
 	// Re-enable IO BAT
 	vector[0] = 0x4C00012C;
@@ -122,7 +138,7 @@ static void patch_exception_handler(u32 *vector) {
 }
 
 static void patch_cnputc() {
-	u32 *src = (u32*)0x000e2e4c;//0x000a473c;  (vanilla)
+	u32 *src = (u32*)0x000e2e58;//0x000a473c;  (vanilla)
 	u32 dst = (u32)(void*)gecko_putc;
 	u32 offset = (dst - (u32)src) & 0x03FFFFFC;
 
@@ -132,7 +148,7 @@ static void patch_cnputc() {
 }
 
 static void patch_ppc_init_io_bat_setup() {
-	u32 *src = (u32*)0x000c6590; //0x0008a984; (vanilla)
+	u32 *src = (u32*)0x000c64d0; //0x0008a984; (vanilla)
 
 	// Enable IO BAT
 	src[0] = 0x4C00012C;
@@ -175,8 +191,11 @@ static void patch_ppc_init_io_bat_setup() {
 static int start_mach_kernel() {
 	long msr;
 
-	printf("\n");
-	printf("Calling Mach Kernel @ 0x%08x; boot args: 0x%08x, signature: %08x\n\n", kernel_entry_point, boot_args_address, kMacOSXSignature);
+	console_println("\n");
+	console_println("Calling Mach Kernel @ 0x%08x; boot args: 0x%08x, signature: %08x", kernel_entry_point, boot_args_address, kMacOSXSignature);
+	console_println("\n");
+	console_println("\n");
+	console_println("\n");
 
 	msr = 0x00001000;
 	__asm__ volatile("mtmsr %0" : : "r" (msr));
@@ -206,28 +225,30 @@ int main(void) {
 	ipc_initialize();
 	ipc_slowping();
 
-	int vmode = -1;
+	int vmode = VIDEO_640X480_NTSCi_YUV16;
 	init_fb(vmode);
 	VIDEO_Init(vmode);
 	VIDEO_SetFrameBuffer(get_xfb());
 	VISetupEncoder();
 
-	printf("\n");
-	printf("wiiMac - A Mac OS X bootloader for the Nintendo Wii\n");
-	printf("(c) 2025 Bryan Keller - @blk19_\n");
+	console_println("\n");
+	console_println("\n");
+	console_println("\n");
+	console_println("\n");
+	console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
+	console_println("(c) 2025 Bryan Keller - @blk19_");
+	console_println("\n");
 
 	int ret;
 
-	printf("\n");
 	ret = load_mach_kernel("/mk");
 	if (ret != 0) {
 		return -1;
 	}
 
-	printf("Loaded Mach Kernel\n");
+	console_println("Loaded Mach Kernel");
 
-	printf("\n");
-	printf("Setting up device tree and boot args...");
+	console_println("Setting up device tree and boot args...");
 
 	set_up_boot_args();
 
@@ -235,13 +256,9 @@ int main(void) {
 	printf("Device tree:\n");
 	print_device_tree((void*)device_tree_start);
 
-	patch_ppc_init_io_bat_setup();
-	patch_cnputc();
-	// patch_memory_trap((void*)0x0004bdac);
-
 	// patch_exception_handler((void*)0x00000100);
 	// patch_exception_handler((void*)0x00000200);
-	patch_exception_handler((void*)0x00000300);
+	// patch_exception_handler((void*)0x00000300);
 	// patch_exception_handler((void*)0x00000400);
 	// patch_exception_handler((void*)0x00000500);
 	// patch_exception_handler((void*)0x00000600);

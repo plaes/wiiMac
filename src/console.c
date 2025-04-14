@@ -44,7 +44,7 @@ static int y_add = 0;
 u32 *font_yuv[255];
 
 u32 *get_xfb(void) {
-	return xfb;
+	return (u32*)(0x80000000 | (u32)xfb);
 }
 
 static void memcpy32(u32 *dst, u32 *src, u32 count) {
@@ -73,7 +73,7 @@ u32 pal_idx(int i, u8 *pal, u8 *gfx) {
 	return (pal[pidx+0] << 16) | (pal[pidx+1] << 8) | (pal[pidx+2]);
 }
 
-int make_yuv(u8 r1, u8 g1, u8 b1, u8 r2, u8 g2, u8 b2) {
+u32 make_yuv(u8 r1, u8 g1, u8 b1, u8 r2, u8 g2, u8 b2) {
   int y1, cb1, cr1, y2, cb2, cr2, cb, cr;
  
   y1 = (299 * r1 + 587 * g1 + 114 * b1) / 1000;
@@ -174,7 +174,7 @@ void print_str(const char *str, size_t len) {
 	}
 }
 
-int console_printf(const char *fmt, ...)
+int console_println(const char *fmt, ...)
 {
 	va_list args;
 	char buffer[CONSOLE_COLS];
