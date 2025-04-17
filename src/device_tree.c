@@ -96,7 +96,7 @@ void build_device_tree() {
 
             u32 reg[4] = {
                 0x00000000, 0x01800000, // 24MB MEM1
-                0x10000000, 0x04000000  // 64MB MEM2
+                0x10000000, 0x03400000  // 58MB MEM2 (upper 12MB used for IOS?)
             };
             add_property("reg", reg, sizeof(reg));
         }

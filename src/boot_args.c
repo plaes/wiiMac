@@ -27,7 +27,7 @@ void set_up_boot_args() {
 
     // MEM2 64MB @0x10000000
     boot_args->PhysicalDRAM[1].base = 0x10000000;
-    boot_args->PhysicalDRAM[1].size = 64 * 1024 * 1024;
+    boot_args->PhysicalDRAM[1].size = 52 * 1024 * 1024; // 52MB MEM2 (upper 12MB used for IOS?)
 
     boot_args->Video.v_baseAddr = (u32)get_xfb();
     boot_args->Video.v_display = 0;
