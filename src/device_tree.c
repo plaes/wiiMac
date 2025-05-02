@@ -58,10 +58,13 @@ void build_device_tree() {
     device_tree_end = device_tree_start;
 
     // /
-    create_node(/*nProps=*/5, /*nChildren=*/4);
+    create_node(/*nProps=*/4, /*nChildren=*/4);
     {
       	const char* name = "device-tree";
         add_property("name", name, strlen(name) + 1);
+
+        const char *compatible = "nintendo,wii";
+        add_property("compatible", compatible, strlen(compatible) + 1);
 
         u32 address_cells = 1;
         add_property("#address-cells", &address_cells, sizeof(address_cells));
@@ -69,20 +72,17 @@ void build_device_tree() {
         u32 size_cells = 1;
         add_property("#size-cells", &size_cells, sizeof(size_cells));
 
-        const char* compatible = "wiiMac1,1";
-        add_property("compatible", compatible, strlen(compatible) + 1);
-
-        const char* model = "Nintendo Wii";
-        add_property("model", model, strlen(model) + 1);
-
         // /chosen
-        create_node(/*nProps=*/2, /*nChildren=*/0);
+        create_node(/*nProps=*/3, /*nChildren=*/0);
         {
             const char* name = "chosen";
             add_property("name", name, strlen(name) + 1);
 
             const char* boot_args = "-v debug=0x02";
             add_property("boot-args", boot_args, strlen(boot_args) + 1);
+
+            const char* rootpath = "sd";
+            add_property("rootpath", rootpath, strlen(rootpath) + 1);
         }
 
         // /memory
@@ -133,11 +133,17 @@ void build_device_tree() {
             }
         }
 
-        // /hollywood
-        create_node(/*nProps=*/4, /*nChildren=*/1);
+        // /hollywood@0c000000
+        create_node(/*nProps=*/6, /*nChildren=*/1);
         {
             const char* name = "hollywood";
             add_property("name", name, strlen(name) + 1);
+
+            const char* device_type = "hollywood";
+            add_property("device_type", name, strlen(name) + 1);
+
+            const char *compatible = "nintendo,hollywood";
+        	add_property("compatible", compatible, strlen(compatible) + 1);
 
             u32 address_cells = 1;
             add_property("#address-cells", &address_cells, sizeof(address_cells));
@@ -152,47 +158,19 @@ void build_device_tree() {
             };
             add_property("ranges", ranges, sizeof(ranges));
 
-            // /hollywood/mac-io
-            create_node(/*nProps=*/6, /*nChildren=*/0);
+            // /hollywood@0c000000/sd@0d070000
+            create_node(/*nProps=*/3, /*nChildren=*/0);
             {
-                const char* name = "mac-io";
+              	const char* name = "sd";
                 add_property("name", name, strlen(name) + 1);
 
-                u32 address_cells = 1;
-                add_property("#address-cells", &address_cells, sizeof(address_cells));
+                const char *compatible = "nintendo,sdhc";
+        		add_property("compatible", compatible, strlen(compatible) + 1);
 
-                u32 size_cells = 1;
-                add_property("#size-cells", &size_cells, sizeof(size_cells));
-
-                const char* device_type = "mac-io";
-                add_property("device_type", device_type, strlen(device_type) + 1);
-
-                u32 reg[6] = {
-                    0x0c000000, 0x01000000,
-                    0x0d000000, 0x00800000,
-                    0x0d800000, 0x00800000
-                };
+                u32 reg[2] = {
+                	0x0d070000, 0x00000200
+            	};
                 add_property("reg", reg, sizeof(reg));
-
-                u32 appl_address[1] = {
-                    0x0d000000
-                };
-                add_property("AAPL,address", appl_address, sizeof(appl_address));
-
-//                // /hollywood/mac-io/escc
-//            	create_node(/*nProps=*/3, /*nChildren=*/0);
-//            	{
-//                	const char* name = "escc";
-//                	add_property("name", name, strlen(name) + 1);
-//
-//                    u32 address_cells = 1;
-//                	add_property("#address-cells", &address_cells, sizeof(address_cells));
-//
-//                    u32 reg[2] = {
-//                    	0x0d806800, 0x01000000
-//                	};
-//                	add_property("reg", reg, sizeof(reg));
-//                }
             }
         }
     }
