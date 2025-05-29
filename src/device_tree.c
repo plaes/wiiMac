@@ -134,7 +134,7 @@ void build_device_tree() {
         }
 
         // /hollywood@0c000000
-        create_node(/*nProps=*/6, /*nChildren=*/1);
+        create_node(/*nProps=*/7, /*nChildren=*/1);
         {
             const char* name = "hollywood";
             add_property("name", name, strlen(name) + 1);
@@ -157,6 +157,13 @@ void build_device_tree() {
                 0x0d800000, 0x0d800000, 0x00800000
             };
             add_property("ranges", ranges, sizeof(ranges));
+
+            u32 reg[] = {
+                0x0c000000, 0x01000000,
+                0x0d000000, 0x00800000,
+                0x0d800000, 0x00800000
+            };
+            add_property("reg", reg, sizeof(reg));
 
             // /hollywood@0c000000/sd@0d070000
             create_node(/*nProps=*/4, /*nChildren=*/0);
