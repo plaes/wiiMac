@@ -8,6 +8,7 @@
 #include "types.h"
 
 #define boot_args_address (0x00500000) // @ 5 MB
+#define boot_args_size (0x000001fc)
 
 /*
  * Video information..

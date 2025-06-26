@@ -5,6 +5,7 @@
 #include "boot_args.h"
 #include "bootmii_ppc.h"
 #include "device_tree.h"
+#include "macho_loader.h"
 #include "string.h"
 #include "types.h"
 
@@ -73,16 +74,43 @@ void build_device_tree() {
         add_property("#size-cells", &size_cells, sizeof(size_cells));
 
         // /chosen
-        create_node(/*nProps=*/3, /*nChildren=*/0);
+        create_node(/*nProps=*/1, /*nChildren=*/1);
         {
             const char *name = "chosen";
             add_property("name", name, strlen(name) + 1);
 
-            const char *boot_args = "-v debug=0x02";
-            add_property("boot-args", boot_args, strlen(boot_args) + 1);
+            //const char *boot_args = "-v debug=0x02 rd=disk0s9";
+            //add_property("boot-args", boot_args, strlen(boot_args) + 1);
 
-            const char *rootpath = "/hollywood@0c000000/sd";
-            add_property("rootpath", rootpath, strlen(rootpath) + 1);
+            //const char *rootpath = "IOService:/NintendoWiiPE/hollywood@C000000/NintendoWiiHollywood/sd@D070000/IOBlockStorageDriver/Nintendo Nintendo Wii SDHCI Media/IOApplePartitionScheme/Untitled 4@4";
+            //add_property("rootpath", rootpath, strlen(rootpath) + 1);
+
+      	    // /chosen/memory-map
+      	    create_node(/*nProps=*/5, /*nChildren=*/0);
+      	    {
+                const char* name = "memory-map";
+                add_property("name", name, strlen(name) + 1);
+
+                u32 kernel_vectors[2] = {
+                    0x00000000, 0x00011000
+                };
+                add_property("Kernel-__VECTORS", kernel_vectors, sizeof(kernel_vectors));
+
+                u32 kernel_text[2] = {
+                    kernel_text_start, kernel_text_size
+                };
+                add_property("Kernel-__TEXT", kernel_text, sizeof(kernel_text));
+
+                u32 kernel_data[2] = {
+                    kernel_data_start, kernel_data_size
+                };
+                add_property("Kernel-__DATA", kernel_data, sizeof(kernel_data));
+
+                u32 boot_args[2] = {
+                    boot_args_address, boot_args_size
+                };
+                add_property("BootArgs", boot_args, sizeof(boot_args));
+            }
         }
 
         // /memory

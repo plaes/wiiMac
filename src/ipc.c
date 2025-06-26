@@ -82,7 +82,7 @@ int ipc_initialize(void)
 	infohdr = (ipc_infohdr*)(read32(0x13fffffc));
 	sync_before_read((void*)infohdr, sizeof(ipc_infohdr));
 
-	printf("IPC: infoheader at %p %08x\n", infohdr);
+	printf("IPC: infoheader at %p\n", infohdr);
 
 	if(memcmp(infohdr->magic, "IPC", 3)) {
 		printf("IPC: bad magic on info structure\n",infohdr);

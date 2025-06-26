@@ -14,7 +14,7 @@ void set_up_boot_args() {
 
     boot_args->Version = 1;
 
-    sprintf(boot_args->CommandLine, "-v debug=0x02\0");
+    sprintf(boot_args->CommandLine, "-v debug=0x02 rd=disk0s4\0");
 
     for (int i = 0; i < 26; i++) {
         boot_args->PhysicalDRAM[i].base = 0;

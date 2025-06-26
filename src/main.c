@@ -239,10 +239,7 @@ int main(void) {
 	console_println("(c) 2025 Bryan Keller - @blk19_");
 	console_println("\n");
 
-	int ret;
-
-	ret = load_mach_kernel("/mk");
-	if (ret != 0) {
+	if (load_mach_kernel("/mk") != 0) {
 		return -1;
 	}
 
@@ -272,8 +269,7 @@ int main(void) {
 	// patch_exception_handler((void*)0x00000E00);
 	// patch_exception_handler((void*)0x00000F00);
 
-	ret = start_mach_kernel();
-	if (ret != 0) {
+	if (start_mach_kernel() != 0) {
 		return -1;
 	}
 

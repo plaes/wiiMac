@@ -217,6 +217,14 @@ static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
         return -1;
     }
 
+    if (strcmp(segment->segname, "__TEXT") == 0) {
+        kernel_text_start = segment->vmaddr;
+        kernel_text_size = segment->vmsize;
+    } else if (strcmp(segment->segname, "__DATA") == 0) {
+        kernel_data_start = segment->vmaddr;
+        kernel_data_size = segment->vmsize;
+    }
+
     return 0;
 }
 
