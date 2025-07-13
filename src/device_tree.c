@@ -59,7 +59,7 @@ void build_device_tree() {
     device_tree_end = device_tree_start;
 
     // /
-    create_node(/*nProps=*/4, /*nChildren=*/4);
+    create_node(/*nProps=*/4, /*nChildren=*/5);
     {
       	const char *name = "device-tree";
         add_property("name", name, strlen(name) + 1);
@@ -73,17 +73,27 @@ void build_device_tree() {
         u32 size_cells = 1;
         add_property("#size-cells", &size_cells, sizeof(size_cells));
 
+        // /options
+        create_node(/*nProps=*/3, /*nChildren=*/0);
+        {
+      	    const char *name = "options";
+      	    add_property("name", name, strlen(name) + 1);
+
+      	    const char *boot_args = boot_args_command_line;
+      	    add_property("boot-args", boot_args, strlen(boot_args) + 1);
+
+      	    const char *boot_command = "boot";
+      	    add_property("boot-command", boot_command, strlen(boot_command) + 1);
+        }
+
         // /chosen
-        create_node(/*nProps=*/1, /*nChildren=*/1);
+        create_node(/*nProps=*/2, /*nChildren=*/1);
         {
             const char *name = "chosen";
             add_property("name", name, strlen(name) + 1);
 
-            //const char *boot_args = "-v debug=0x02 rd=disk0s9";
-            //add_property("boot-args", boot_args, strlen(boot_args) + 1);
-
-            //const char *rootpath = "IOService:/NintendoWiiPE/hollywood@C000000/NintendoWiiHollywood/sd@D070000/IOBlockStorageDriver/Nintendo Nintendo Wii SDHCI Media/IOApplePartitionScheme/Untitled 4@4";
-            //add_property("rootpath", rootpath, strlen(rootpath) + 1);
+            const char *rootpath = "IOService:/NintendoWiiPE/hollywood@C000000/NintendoWiiHollywood/sd@D070000/IOBlockStorageDriver/Nintendo Nintendo Wii SDHCI Media/IOApplePartitionScheme/Untitled 4@4";
+            add_property("rootpath", rootpath, strlen(rootpath) + 1);
 
       	    // /chosen/memory-map
       	    create_node(/*nProps=*/5, /*nChildren=*/0);

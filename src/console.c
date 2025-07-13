@@ -224,7 +224,7 @@ void font_to_yuv(void) {
 void init_fb(int vmode) {
 	int i;
 	u32 *fb;
-	u32 fill_col = make_yuv(0,0,0, 0,0,0);
+	u32 fill_col = make_yuv(136,136,136, 136,136,136);
 
 	font_to_yuv();
 
