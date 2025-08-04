@@ -6,7 +6,6 @@
 #include "console.h"
 #include "ff.h"
 #include "macho_loader.h"
-#include "malloc.h"
 #include "string.h"
 #include "types.h"
 
@@ -163,9 +162,6 @@ static int decode_mach_kernel(u8 *fbuf) {
 
     printf("\n");
     printf("Decoding Mach Kernel...\n");
-  
-    kernel_header_start = (u32)header;
-    kernel_header_size = sizeof(mach_header_t);
 
     u8 *cmds_offset = fbuf + sizeof(mach_header_t);
     u32 num_cmds = header->ncmds;
@@ -222,6 +218,8 @@ static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
 
     if (strcmp(segment->segname, "__TEXT") == 0) {
         printf("Found __TEXT\n");
+        kernel_header_start = segment->vmaddr;
+        kernel_header_size = sizeof(mach_header_t);
         kernel_text_start = segment->vmaddr;
         kernel_text_size = segment->vmsize;
     } else if (strcmp(segment->segname, "__DATA") == 0) {
@@ -256,10 +254,11 @@ static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
     printf("LC_SYMTAB %d\n", load_cmd->cmdsize);
 
     symtab_command_t *symtab = (symtab_command_t *)load_cmd;
+  
     u32 symSize = symtab->stroff - symtab->symoff;
     u32 totalSize = symSize + symtab->strsize;
     u32 symtabSize = totalSize + sizeof(symtab_command_t);
-    u8 *symtabAddr = malloc(symtabSize);
+    u8 *symtabAddr = (u8*)kernel_symtab_start;
     printf("0x%08x-0x%08x\n", symtabAddr, symtabAddr+symtabSize);
 
     symtab_command_t *symtabSave = (symtab_command_t *)symtabAddr;
@@ -271,7 +270,6 @@ static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
 
     memcpy(symtabAddr, fbuf + symtab->symoff, totalSize);
 
-    kernel_symtab_start = (u32)symtabAddr;
     kernel_symtab_size = symtabSize;
 
     return 0;

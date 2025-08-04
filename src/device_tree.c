@@ -139,9 +139,10 @@ void build_device_tree() {
             const char *device_type = "memory";
             add_property("device_type", device_type, strlen(device_type) + 1);
 
+            // I don't think this is used or looked at, and might just be used in an OF Fourth environment
             u32 reg[4] = {
-                0x00000000, 0x01800000, // 24MB MEM1
-                0x10000000, 0x03400000  // 52MB MEM2 (upper 12MB used for IOS?)
+                0x00000000, 0x01600000, // 22 MB MEM1 (upper 1 MB used for frame buffer, but 23 MB crashes)
+                0x10000000, 0x03400000  // 52 MB MEM2 (upper 12 MB used for IOS?)
             };
             add_property("reg", reg, sizeof(reg));
         }

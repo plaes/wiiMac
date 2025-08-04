@@ -252,6 +252,9 @@ int main(void) {
 	printf("\n");
 	printf("Device tree:\n");
 	print_device_tree((void*)device_tree_start);
+  
+  printf("\n");
+  printf("Top of kernel data: %08x\n", ((boot_args_t*)boot_args_address)->topOfKernelData);
 
 	// patch_exception_handler((void*)0x00000100);
 	// patch_exception_handler((void*)0x00000200);

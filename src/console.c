@@ -38,7 +38,7 @@ typedef struct {
 #define CONSOLE_CHAR_HEIGHT 16
 #define CONSOLE_ROW_HEIGHT (CONSOLE_CHAR_HEIGHT + 1)
 
-static u32 *xfb = NULL;
+static u32 *xfb = (u32*)0x01700000; // @ 23 MB
 static int y_add = 0;
 
 u32 *font_yuv[255];
@@ -239,8 +239,6 @@ void init_fb(int vmode) {
 		y_add = 48;
 		break;
 	}
-
-	xfb = memalign(32, 640 * (480 + (y_add*2)) * 2);
 
 	fb  = xfb;
 	for (i = 0; i < (480 + (y_add*2)) * 2 * (640 >> 1); i++) {
