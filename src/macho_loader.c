@@ -107,11 +107,11 @@ typedef struct ppc_thread_state {
     u32 vrsave;	                /* Vector Save Register */
 } ppc_thread_state_t;
 
-static int decode_mach_kernel(u8 *fbuf);
-static int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf);
-static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf);
-static int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
-static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf);
+static int decode_mach_kernel(void *fbuf);
+static int handle_load_cmd(load_command_t *load_cmd, void *fbuf);
+static int handle_lc_segment(load_command_t *load_cmd, void *fbuf);
+static int load_segment(void *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
+static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf);
 static int handle_lc_unixthread(load_command_t *load_cmd);
 
 int load_mach_kernel(const char *kernel_path) {
@@ -135,7 +135,7 @@ int load_mach_kernel(const char *kernel_path) {
     }
 
     size_t fsize = fp.fsize;
-    u8 *fbuf = (u8*)kernel_file_load_address;
+    void *fbuf = (u8*)kernel_file_load_address;
 
     u32 bytesRead;
     res = f_read(&fp, fbuf, fsize, &bytesRead);
@@ -147,7 +147,7 @@ int load_mach_kernel(const char *kernel_path) {
     return decode_mach_kernel(fbuf);
 }
 
-static int decode_mach_kernel(u8 *fbuf) {
+static int decode_mach_kernel(void *fbuf) {
     mach_header_t *header = (mach_header_t *)fbuf;
 
     printf("\n");
@@ -163,7 +163,7 @@ static int decode_mach_kernel(u8 *fbuf) {
     printf("\n");
     printf("Decoding Mach Kernel...\n");
 
-    u8 *cmds_offset = fbuf + sizeof(mach_header_t);
+    void *cmds_offset = fbuf + sizeof(mach_header_t);
     u32 num_cmds = header->ncmds;
 
     for (u32 i = 0; i < num_cmds; i++) {
@@ -182,7 +182,7 @@ static int decode_mach_kernel(u8 *fbuf) {
     return 0;
 }
 
-static int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_load_cmd(load_command_t *load_cmd, void *fbuf) {
     int ret = 0;
     switch (load_cmd->cmd) {
         case LC_SEGMENT:
@@ -203,15 +203,11 @@ static int handle_load_cmd(load_command_t *load_cmd, u8 *fbuf) {
     return ret;
 }
 
-static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_lc_segment(load_command_t *load_cmd, void *fbuf) {
     printf("LC_SEGMENT %d\n", load_cmd->cmdsize);
 
     segment_command_t *segment = (segment_command_t *)load_cmd;
     printf("Handle %s\n", segment->segname);
-
-    // if (strcmp(segment->segname, "__VECTORS") == 0) {
-    //     return 0;
-    // }
 
     int ret = load_segment(fbuf, segment->fileoff, segment->filesize, segment->vmaddr, segment->vmsize);
     if (ret != 0) {
@@ -232,9 +228,9 @@ static int handle_lc_segment(load_command_t *load_cmd, u8 *fbuf) {
     return 0;
 }
 
-static int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
-    u8 *src = fbuf + foff;
-    u8 *dst = (u8*)vmaddr;
+static int load_segment(void *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
+    void *src = fbuf + foff;
+    void *dst = (void*)vmaddr;
 
     printf("memcpy 0x%08x-0x%08x to 0x%08x-0x%08x\n", src, src + fsize, dst, dst + fsize);
 
@@ -242,16 +238,13 @@ static int load_segment(u8 *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
         return -1;
     }
 
-    if (fsize < vmsize) {
-        memset(dst, 0, vmsize);
-    }
-
+    // Zeroing memory is handled earlier
     memcpy(dst, src, fsize);
 
     return 0;
 }
 
-static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
+static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf) {
     printf("LC_SYMTAB %d\n", load_cmd->cmdsize);
 
     symtab_command_t *symtab = (symtab_command_t *)load_cmd;
@@ -259,7 +252,7 @@ static int handle_lc_symtab(load_command_t *load_cmd, u8 *fbuf) {
     u32 symSize = symtab->stroff - symtab->symoff;
     u32 totalSize = symSize + symtab->strsize;
     u32 symtabSize = totalSize + sizeof(symtab_command_t);
-    u8 *symtabAddr = (u8*)kernel_symtab_start;
+    void *symtabAddr = (u8*)kernel_symtab_start;
     printf("0x%08x-0x%08x\n", symtabAddr, symtabAddr+symtabSize);
 
     symtab_command_t *symtabSave = (symtab_command_t *)symtabAddr;

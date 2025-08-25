@@ -238,6 +238,9 @@ int main(void) {
 	console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
 	console_println("(c) 2025 Bryan Keller - @blk19_");
 	console_println("\n");
+  
+  // Zero all memory leading up to the file load address
+  memset((void*)0x2FF, 0, kernel_file_load_address - 0x2FF);
 
 	if (load_mach_kernel("/mk") != 0) {
 		return -1;
