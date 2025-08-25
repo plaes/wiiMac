@@ -225,7 +225,7 @@ int main(void) {
 	ipc_initialize();
 	ipc_slowping();
 
-	int vmode = VIDEO_640X480_NTSCi_YUV16;
+	int vmode = VIDEO_640X480_NTSCp_YUV16;
 	init_fb(vmode);
 	VIDEO_Init(vmode);
 	VIDEO_SetFrameBuffer(get_xfb());
@@ -259,26 +259,11 @@ int main(void) {
   printf("\n");
   printf("Top of kernel data: %08x\n", ((boot_args_t*)boot_args_address)->topOfKernelData);
 
-	// patch_exception_handler((void*)0x00000100);
-	// patch_exception_handler((void*)0x00000200);
-	// patch_exception_handler((void*)0x00000300);
-	// patch_exception_handler((void*)0x00000400);
-	// patch_exception_handler((void*)0x00000500);
-	// patch_exception_handler((void*)0x00000600);
-	// patch_exception_handler((void*)0x00000700);
-	// patch_exception_handler((void*)0x00000800);
-	// patch_exception_handler((void*)0x00000900);
-	// patch_exception_handler((void*)0x00000A00);
-	// patch_exception_handler((void*)0x00000B00);
-	// patch_exception_handler((void*)0x00000C00);
-	// patch_exception_handler((void*)0x00000D00);
-	// patch_exception_handler((void*)0x00000E00);
-	// patch_exception_handler((void*)0x00000F00);
 
 	if (start_mach_kernel() != 0) {
 		return -1;
 	}
 
-    return 0;
+  return 0;
 }
 
