@@ -22,7 +22,7 @@
 typedef struct {
   u32 x, y;
   u32 width, height;
-  u32 *yuv_data;  
+  u32 *yuv_data;
   u32 active;
   u8 has_alpha;
 } gfx_rect;
@@ -37,9 +37,21 @@ typedef struct {
 #define CONSOLE_CHAR_WIDTH 8
 #define CONSOLE_CHAR_HEIGHT 16
 #define CONSOLE_ROW_HEIGHT (CONSOLE_CHAR_HEIGHT + 1)
+#define CONSOLE_MAX_Y (CONSOLE_Y + (CONSOLE_LINES - 1) * CONSOLE_ROW_HEIGHT)
+
+#define GFX_BG_R 136
+#define GFX_BG_G 136
+#define GFX_BG_B 136
+#define TXT_BG_R 0
+#define TXT_BG_G 0
+#define TXT_BG_B 0
+#define FONT_R 255
+#define FONT_G 255
+#define FONT_B 255
 
 static u32 *xfb = (u32*)0x01700000; // @ 23 MB
 static int y_add = 0;
+static int current_y = CONSOLE_Y;
 
 u32 *font_yuv[255];
 
@@ -66,7 +78,7 @@ static void memset32(u32 *dst, u32 setval, u32 count) {
   }
 }
 
-u32 pal_idx(int i, u8 *pal, u8 *gfx) { 
+u32 pal_idx(int i, u8 *pal, u8 *gfx) {
   u32 pidx = gfx[i];
   pidx *= 3;
   
@@ -132,7 +144,7 @@ void scroll(void) {
   }
   
   fill_rect(CONSOLE_X, CONSOLE_Y+(CONSOLE_LINES-1)*CONSOLE_ROW_HEIGHT,
-            CONSOLE_WIDTH, CONSOLE_ROW_HEIGHT, 0, 0, 0);
+            CONSOLE_WIDTH, CONSOLE_ROW_HEIGHT, TXT_BG_R, TXT_BG_G, TXT_BG_B);
 }
 
 void print_str_noscroll(int x, int y, char *str) {
@@ -162,16 +174,24 @@ void print_str(const char *str, size_t len) {
   unsigned int i;
   gfx_rect d_char;
   
-  scroll();
-  d_char.width  = 8;
-  d_char.height = CONSOLE_CHAR_HEIGHT;
-  d_char.y = CONSOLE_Y + ((CONSOLE_LINES - 1) * CONSOLE_ROW_HEIGHT);
-  
-  for (i = 0; i < len; i++) {
-    d_char.x = CONSOLE_X + (i * 10);
-    d_char.yuv_data = font_yuv[(int) str[i]];
-    gfx_draw_rect(&d_char);
+  if (current_y > CONSOLE_MAX_Y) {
+    scroll();
+    current_y = CONSOLE_MAX_Y;
   }
+  
+  if (len > 0) {
+    d_char.width  = 8;
+    d_char.height = CONSOLE_CHAR_HEIGHT;
+    d_char.y = current_y;
+    
+    for (i = 0; i < len; i++) {
+      d_char.x = CONSOLE_X + (i * 10);
+      d_char.yuv_data = font_yuv[(int) str[i]];
+      gfx_draw_rect(&d_char);
+    }
+  }
+  
+  current_y += CONSOLE_ROW_HEIGHT;
 }
 
 int console_println(const char *fmt, ...)
@@ -185,11 +205,8 @@ int console_println(const char *fmt, ...)
   i = vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
   
-  if (i > 0) {
-    print_str(buffer, i);
-    printf("%s\n", buffer);
-  } else
-    scroll();
+  print_str(buffer, i);
+  printf("%s\n", buffer);
   
   return i;
 }
@@ -204,15 +221,15 @@ void font_to_yuv(void) {
     for (y = 0; y < CONSOLE_CHAR_HEIGHT; y++) {
       for (x = 0; x < 8; x+=2) {
         if (((console_font_8x16[(i*CONSOLE_CHAR_HEIGHT)+y] >> (7-x)) & 0x01) == 1) {
-          lr = 255; lg = 255; lb = 255;
+          lr = FONT_R; lg = FONT_G; lb = FONT_B;
         } else {
-          lr = 0; lg = 0; lb = 0;
+          lr = TXT_BG_R; lg = TXT_BG_G; lb = TXT_BG_B;
         }
         
         if (((console_font_8x16[(i*CONSOLE_CHAR_HEIGHT)+y] >> (7-(x+1))) & 0x01) == 1) {
-          rr = 255; rg = 255; rb = 255;
+          rr = FONT_R; rg = FONT_G; rb = FONT_B;
         } else {
-          rr = 0; rg = 0; rb = 0;
+          rr = TXT_BG_R; rg = TXT_BG_G; rb = TXT_BG_B;
         }
         
         font_yuv[i][(y<<2)+(x>>1)] = make_yuv(lr, lg, lb, rr, rg, rb);
@@ -224,7 +241,7 @@ void font_to_yuv(void) {
 void init_fb(int vmode) {
   int i;
   u32 *fb;
-  u32 fill_col = make_yuv(136,136,136, 136,136,136);
+  u32 fill_col = make_yuv(TXT_BG_R,TXT_BG_G,TXT_BG_B, TXT_BG_R,TXT_BG_G,TXT_BG_B);
   
   font_to_yuv();
   

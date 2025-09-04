@@ -118,10 +118,6 @@ int main(void) {
 	VIDEO_SetFrameBuffer(get_xfb());
 	VISetupEncoder();
 
-	console_println("");
-	console_println("");
-	console_println("");
-	console_println("");
 	console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
 	console_println("(c) 2025 Bryan Keller - @blk19_");
 	console_println("");
@@ -147,9 +143,9 @@ int main(void) {
   printf("Top of kernel data: %08x\n", ((boot_args_t*)boot_args_address)->topOfKernelData);
 
 
-//	if (start_mach_kernel() != 0) {
-//		return -1;
-//	}
+	if (start_mach_kernel() != 0) {
+		return -1;
+	}
 
   return 0;
 }
