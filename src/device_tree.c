@@ -73,17 +73,155 @@ void build_device_tree() {
     u32 size_cells = 1;
     add_property("#size-cells", &size_cells, sizeof(size_cells));
     
-    // /options
-    create_node(/*nProps=*/3, /*nChildren=*/0);
+    // /cpus
+    create_node(/*nProps=*/3, /*nChildren=*/1);
     {
-      const char *name = "options";
+      const char *name = "cpus";
       add_property("name", name, strlen(name) + 1);
       
-      const char *boot_args = boot_args_command_line;
-      add_property("boot-args", boot_args, strlen(boot_args) + 1);
+      u32 address_cells = 1;
+      add_property("#address-cells", &address_cells, sizeof(address_cells));
       
-      const char *boot_command = "boot";
-      add_property("boot-command", boot_command, strlen(boot_command) + 1);
+      u32 size_cells = 0;
+      add_property("#size-cells", &size_cells, sizeof(size_cells));
+      
+      // /cpus/PowerPC,750
+      create_node(/*nProps=*/5, /*nChildren=*/0);
+      {
+        const char *name = "PowerPC,750";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *dtype = "cpu";
+        add_property("device_type", dtype, strlen(dtype) + 1);
+        
+        u32 clockFreq = 729000000; // Wii's Broadway CPU ~729MHz
+        add_property("clock-frequency", &clockFreq, sizeof(clockFreq));
+        
+        u32 tbFreq = 60750000; // 243MHz / 4
+        add_property("timebase-frequency", &tbFreq, sizeof(tbFreq));
+        
+        u32 busFreq = 243000000; // 729000000 / 3
+        add_property("bus-frequency", &busFreq, sizeof(busFreq));
+      }
+    }
+    
+    // /memory
+    create_node(/*nProps=*/3, /*nChildren=*/0);
+    {
+      const char *name = "memory";
+      add_property("name", name, strlen(name) + 1);
+      
+      const char *device_type = "memory";
+      add_property("device_type", device_type, strlen(device_type) + 1);
+      
+      // I don't think this is used or looked at, and might just be used in an OF Fourth environment
+      u32 reg[4] = {
+        0x00000000, 0x01800000, // 24 MB MEM1
+        0x10000000, 0x04000000  // 64 MB MEM2
+      };
+      add_property("reg", reg, sizeof(reg));
+    }
+    
+    // /hollywood
+    create_node(/*nProps=*/6, /*nChildren=*/3);
+    {
+      const char* name = "hollywood";
+      add_property("name", name, strlen(name) + 1);
+      
+      const char *device_type = "hollywood";
+      add_property("device_type", device_type, strlen(device_type) + 1);
+      
+      const char *compatible = "nintendo,hollywood";
+      add_property("compatible", compatible, strlen(compatible) + 1);
+      
+      u32 address_cells = 1;
+      add_property("#address-cells", &address_cells, sizeof(address_cells));
+      
+      u32 size_cells = 1;
+      add_property("#size-cells", &size_cells, sizeof(size_cells));
+      
+      u32 ranges[9] = {
+        0x0c000000, 0x0c000000, 0x01000000,
+        0x0d000000, 0x0d000000, 0x00800000,
+        0x0d800000, 0x0d800000, 0x00800000
+      };
+      add_property("ranges", ranges, sizeof(ranges));
+      
+      // /hollywood/pic0@0c003000
+      create_node(/*nProps=*/6, /*nChildren=*/0);
+      {
+        const char *name = "pic0";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *compatible = "nintendo,flipper-pic";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0c003000, 0x00000100
+        };
+        add_property("reg", reg, sizeof(reg));
+        
+        u32 interrupt_cells = 1;
+        add_property("#interrupt-cells", &interrupt_cells, sizeof(interrupt_cells));
+        
+        u32 phandle = 0xFEAD0000;
+        add_property("AAPL,phandle", &phandle, sizeof(phandle));
+        
+        add_property("interrupt-controller", NULL, 0);
+      }
+      
+      // /hollywood/pic1@0d800030
+      create_node(/*nProps=*/8, /*nChildren=*/0);
+      {
+        const char *name = "pic1";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *compatible = "nintendo,hollywood-pic";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0d800030, 0x00000010
+        };
+        add_property("reg", reg, sizeof(reg));
+        
+        u32 interrupt_cells = 1;
+        add_property("#interrupt-cells", &interrupt_cells, sizeof(interrupt_cells));
+        
+        u32 phandle = 0xFEAD0001;
+        add_property("AAPL,phandle", &phandle, sizeof(phandle));
+        
+        add_property("interrupt-controller", NULL, 0);
+        
+        u32 interrupt_parent = 0xFEAD0000;
+        add_property("interrupt-parent", &interrupt_parent, sizeof(interrupt_parent));
+        
+        u32 interrupts = 14;
+        add_property("interrupts", &interrupts, sizeof(interrupts));
+      }
+      
+      // /hollywood/sd@0d070000
+      create_node(/*nProps=*/6, /*nChildren=*/0);
+      {
+        const char *name = "sd";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *device_type = "sd";
+        add_property("device_type", device_type, strlen(device_type) + 1);
+        
+        const char *compatible = "nintendo,hollywood-sdhci";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0d070000, 0x00000200
+        };
+        add_property("reg", reg, sizeof(reg));
+        
+        u32 interrupts = 7;
+        add_property("interrupts", &interrupts, sizeof(interrupts));
+
+        u32 interrupt_parent = 0xFEAD0001;
+        add_property("interrupt-parent", &interrupt_parent, sizeof(interrupt_parent));
+      }
     }
     
     // /chosen
@@ -135,104 +273,17 @@ void build_device_tree() {
       }
     }
     
-    // /memory
+    // /options
     create_node(/*nProps=*/3, /*nChildren=*/0);
     {
-      const char *name = "memory";
+      const char *name = "options";
       add_property("name", name, strlen(name) + 1);
       
-      const char *device_type = "memory";
-      add_property("device_type", device_type, strlen(device_type) + 1);
+      const char *boot_args = boot_args_command_line;
+      add_property("boot-args", boot_args, strlen(boot_args) + 1);
       
-      // I don't think this is used or looked at, and might just be used in an OF Fourth environment
-      u32 reg[4] = {
-        0x00000000, 0x01600000, // 22 MB MEM1 (upper 2 MB used for frame buffers (real YUV and RGB shadow))
-        0x10000000, 0x03400000  // 52 MB MEM2 (upper 12 MB used for IOS?)
-      };
-      add_property("reg", reg, sizeof(reg));
-    }
-    
-    // /cpus
-    create_node(/*nProps=*/1, /*nChildren=*/1);
-    {
-      const char *name = "cpus";
-      add_property("name", name, strlen(name) + 1);
-      
-      // /cpus/PowerPC,750
-      create_node(/*nProps=*/7, /*nChildren=*/0);
-      {
-        const char *name = "PowerPC,750";
-        add_property("name", name, strlen(name) + 1);
-        
-        u32 address_cells = 1;
-        add_property("#address-cells", &address_cells, sizeof(address_cells));
-        
-        u32 size_cells = 0;
-        add_property("#size-cells", &size_cells, sizeof(size_cells));
-        
-        const char *dtype = "cpu";
-        add_property("device_type", dtype, strlen(dtype) + 1);
-        
-        u32 clockFreq = 729000000; // Wii's Broadway CPU ~729MHz
-        add_property("clock-frequency", &clockFreq, sizeof(clockFreq));
-        
-        u32 tbFreq = 60750000; // 243MHz / 4
-        add_property("timebase-frequency", &tbFreq, sizeof(tbFreq));
-        
-        u32 busFreq = 243000000; // 729000000 / 3
-        add_property("bus-frequency", &busFreq, sizeof(busFreq));
-      }
-    }
-    
-    // /hollywood@0c000000
-    create_node(/*nProps=*/7, /*nChildren=*/1);
-    {
-      const char* name = "hollywood";
-      add_property("name", name, strlen(name) + 1);
-      
-      const char *device_type = "hollywood";
-      add_property("device_type", device_type, strlen(device_type) + 1);
-      
-      const char *compatible = "nintendo,hollywood";
-      add_property("compatible", compatible, strlen(compatible) + 1);
-      
-      u32 address_cells = 1;
-      add_property("#address-cells", &address_cells, sizeof(address_cells));
-      
-      u32 size_cells = 1;
-      add_property("#size-cells", &size_cells, sizeof(size_cells));
-      
-      u32 ranges[9] = {
-        0x0c000000, 0x0c000000, 0x01000000,
-        0x0d000000, 0x0d000000, 0x00800000,
-        0x0d800000, 0x0d800000, 0x00800000
-      };
-      add_property("ranges", ranges, sizeof(ranges));
-      
-      u32 reg[] = {
-        0x0c000000, 0x01000000,
-        0x0d000000, 0x00800000,
-        0x0d800000, 0x00800000
-      };
-      add_property("reg", reg, sizeof(reg));
-      
-      // /hollywood@0c000000/sd@0d070000
-      create_node(/*nProps=*/4, /*nChildren=*/0);
-      {
-        const char *name = "sd";
-        add_property("name", name, strlen(name) + 1);
-        
-        const char *device_type = "sd";
-        add_property("device_type", device_type, strlen(device_type) + 1);
-        
-        const char *compatible = "nintendo,hollywood-sdhci";
-        add_property("compatible", compatible, strlen(compatible) + 1);
-        
-        u32 reg[2] = {
-          0x0d070000, 0x00000200
-        };
-        add_property("reg", reg, sizeof(reg));
-      }
+      const char *boot_command = "boot";
+      add_property("boot-command", boot_command, strlen(boot_command) + 1);
     }
   }
 }
