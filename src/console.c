@@ -372,8 +372,6 @@ void draw_screen_for_graphical_boot() {
   happy_wii.x = (CONSOLE_WIDTH / 2) - 16;
   happy_wii.y = (CONSOLE_HEIGHT / 2) - 16;
   
-  printf("%08x\n", fill_col);
-  
   happy_wii.yuv_data = (u32 *)happy_mac_yuv_data;
   
   gfx_draw_rect(&happy_wii);
