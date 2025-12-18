@@ -49,7 +49,7 @@ typedef struct {
 #define FONT_G 255
 #define FONT_B 255
 
-static u32 *xfb = (u32*)0x01700000; // @ 23 MB
+static u32 *xfb = (u32*)0x81700000; // @ 23 MB
 static int y_add = 0;
 static int current_y = CONSOLE_Y;
 
@@ -145,13 +145,12 @@ static const u16 happy_mac_yuv_data[1024] = {
 };
 
 u32 *get_xfb(void) {
-  return (u32*)(0x80000000 | (u32)xfb);
+  return xfb;
 }
 
 static void memcpy32(u32 *dst, u32 *src, u32 count) {
   while(count--) {
     *dst = *src;
-    sync_after_write((const void *)dst, 4);
     
     dst++;
     src++;
@@ -161,7 +160,6 @@ static void memcpy32(u32 *dst, u32 *src, u32 count) {
 static void memset32(u32 *dst, u32 setval, u32 count) {
   while(count--) {
     *dst = setval;
-    sync_after_write((const void *)dst, 4);
     
     dst++;
   }
@@ -349,7 +347,6 @@ void init_fb(int vmode) {
   fb  = xfb;
   for (i = 0; i < (480 + (y_add*2)) * 2 * (640 >> 1); i++) {
     *fb = fill_col;
-    sync_after_write(fb, 4);
     fb++;
   }
 }
@@ -362,7 +359,6 @@ void draw_screen_for_graphical_boot() {
   // Draw gray background
   for (int i = 0; i < (480 + (y_add*2)) * 2 * (640 >> 1); i++) {
     *fb = fill_col;
-    sync_after_write(fb, 4);
     fb++;
   }
   
