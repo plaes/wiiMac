@@ -2952,3 +2952,16 @@ int f_printf (
 
 #endif /* !_FS_READONLY */
 #endif /* _USE_STRFUNC */
+
+#if _USE_LFN
+WCHAR ff_convert(WCHAR chr, UINT dir)
+{
+  (void)dir;
+  
+  /* Allow basic ASCII and a few common symbols; reject the rest. */
+  if (chr < 0x80)
+    return chr;
+  
+  return 0; /* 0 means “cannot convert” */
+}
+#endif

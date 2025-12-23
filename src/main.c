@@ -120,7 +120,7 @@ int main(void) {
   // Zero all memory leading up to the file load address
   memset((void*)0x2FF, 0, kernel_file_load_address - 0x2FF);
 
-	if (load_mach_kernel("/mk") != 0) {
+	if (load_mach_kernel("/wiiMac/mach_kernel") != 0) {
 		return -1;
 	}
 
