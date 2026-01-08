@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2000-2003 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
  * The contents of this file constitute Original Code as defined in and
- * are subject to the Apple Public Source License Version 2.0 (the
+ * are subject to the Apple Public Source License Version 1.1 (the
  * "License").  You may not use this file except in compliance with the
  * License.  Please obtain a copy of the License at
  * http://www.apple.com/publicsource and read it before using this file.
@@ -28,6 +28,7 @@
  */
 
 #include "sl.h"
+//#include "fs.h"
 
 struct CacheEntry {
   CICell    ih;
@@ -36,7 +37,7 @@ struct CacheEntry {
 };
 typedef struct CacheEntry CacheEntry;
 
-#define kCacheSize            (0x100000)
+#define kCacheSize            (0x80000)
 #define kCacheMinBlockSize    (0x200)
 #define kCacheMaxBlockSize    (0x4000)
 #define kCacheMaxEntries      (kCacheSize / kCacheMinBlockSize)
@@ -45,110 +46,95 @@ static CICell     gCacheIH;
 static long       gCacheBlockSize;
 static long       gCacheNumEntries;
 static long       gCacheTime;
-
 static CacheEntry gCacheEntries[kCacheMaxEntries];
 static char       gCacheBuffer[kCacheSize];
 
-#if CACHE_STATS
 unsigned long     gCacheHits;
 unsigned long     gCacheMisses;
 unsigned long     gCacheEvicts;
-#endif
 
-void CacheReset()
+void CacheInit(CICell ih, long blockSize)
 {
-    gCacheIH = NULL;
+  if ((blockSize < kCacheMinBlockSize) ||
+      (blockSize >= kCacheMaxBlockSize))
+    return;
+  
+  gCacheBlockSize = blockSize;
+  gCacheNumEntries = kCacheSize / gCacheBlockSize;
+  gCacheTime = 0;
+  
+  gCacheHits = 0;
+  gCacheMisses = 0;
+  gCacheEvicts = 0;
+  
+  bzero(gCacheEntries, sizeof(gCacheEntries));
+  
+  gCacheIH = ih;
 }
 
-void CacheInit( CICell ih, long blockSize )
-{
-    if ((blockSize  < kCacheMinBlockSize) ||
-        (blockSize >= kCacheMaxBlockSize))
-        return;
 
-    gCacheBlockSize = blockSize;
-    gCacheNumEntries = kCacheSize / gCacheBlockSize;
-    gCacheTime = 0;
+long CacheRead(CICell ih, char *buffer, long long offset,
+	       long length, long cache)
+{
+  long       cnt, oldestEntry, oldestTime, loadCache = 0;
+  CacheEntry *entry;
+  
+  // See if the data can be cached.
+  if (cache && (gCacheIH == ih) && (length == gCacheBlockSize)) {
+    // Look for the data in the cache.
+    for (cnt = 0; cnt < gCacheNumEntries; cnt++) {
+      entry = &gCacheEntries[cnt];
+      if ((entry->ih == ih) && (entry->offset == offset)) {
+	entry->time = ++gCacheTime;
+	break;
+      }
+    }
     
-#if CACHE_STATS
-    gCacheHits = 0;
-    gCacheMisses = 0;
-    gCacheEvicts = 0;
-#endif
-
-    gCacheIH = ih;
-
-    bzero(gCacheEntries, kCacheMaxEntries * sizeof(CacheEntry));
-}
-
-long CacheRead( CICell ih, char * buffer, long long offset,
-	            long length, long cache )
-{
-    long       cnt, oldestEntry = 0, oldestTime, loadCache = 0;
-    CacheEntry *entry;
-
-    // See if the data can be cached.
-    if (cache && (gCacheIH == ih) && (length == gCacheBlockSize)) {
-        // Look for the data in the cache.
-        for (cnt = 0; cnt < gCacheNumEntries; cnt++) {
-            entry = &gCacheEntries[cnt];
-            if ((entry->ih == ih) && (entry->offset == offset)) {
-                entry->time = ++gCacheTime;
-                break;
-            }
-        }
-
-        // If the data was found copy it to the caller.
-        if (cnt != gCacheNumEntries) {
-            bcopy(gCacheBuffer + cnt * gCacheBlockSize, buffer, gCacheBlockSize);
-#if CACHE_STATS
-            gCacheHits++;
-#endif
-            return gCacheBlockSize;
-        }
-
-        // Could not find the data in the cache.
-        loadCache = 1;
+    // If the data was found copy it to the caller.
+    if (cnt != gCacheNumEntries) {
+      bcopy(gCacheBuffer + cnt * gCacheBlockSize, buffer, gCacheBlockSize);
+      gCacheHits++;
+      return gCacheBlockSize;
     }
-
-    // Read the data from the disk.
-    Seek(ih, offset);
-    Read(ih, (long)buffer, length);
-#if CACHE_STATS
-    if (cache) gCacheMisses++;
-#endif
-
-    // Put the data from the disk in the cache if needed.
-    if (loadCache) {
-        // Find a free entry.
-        oldestTime = gCacheTime;
-        for (cnt = 0; cnt < gCacheNumEntries; cnt++) {
-            entry = &gCacheEntries[cnt];
-
-            // Found a free entry.
-            if (entry->ih == 0) break;
-        
-            if (entry->time < oldestTime) {
-                oldestTime = entry->time;
-                oldestEntry = cnt;
-            }
-        }
-
-        // If no free entry was found, use the oldest.
-        if (cnt == gCacheNumEntries) {
-            cnt = oldestEntry;
-#if CACHE_STATS
-            gCacheEvicts++;
-#endif
-        }
-
-        // Copy the data from disk to the new entry.
-        entry = &gCacheEntries[cnt];
-        entry->ih = ih;
-        entry->time = ++gCacheTime;
-        entry->offset = offset;
-        bcopy(buffer, gCacheBuffer + cnt * gCacheBlockSize, gCacheBlockSize);
+    
+    // Could not find the data in the cache.
+    loadCache = 1;
+  }
+  
+  // Read the data from the disk.
+  Seek(ih, offset);
+  Read(ih, (CICell)buffer, length);
+  if (cache) gCacheMisses++;
+  
+  // Put the data from the disk in the cache if needed.
+  if (loadCache) {
+    // Find a free entry.
+    oldestTime = gCacheTime;
+    for (cnt = 0; cnt < gCacheNumEntries; cnt++) {
+      entry = &gCacheEntries[cnt];
+      
+      // Found a free entry.
+      if (entry->ih == 0) break;
+      
+      if (entry->time < oldestTime) {
+	oldestTime = entry->time;
+	oldestEntry = cnt;
+      }
     }
-
-    return length;
+    
+    // If no free entry was found, use the oldest.
+    if (cnt == gCacheNumEntries) {
+      cnt = oldestEntry;
+      gCacheEvicts++;
+    }
+    
+    // Copy the data from disk to the new entry.
+    entry = &gCacheEntries[cnt];
+    entry->ih = ih;
+    entry->time = ++gCacheTime;
+    entry->offset = offset;
+    bcopy(buffer, gCacheBuffer + cnt * gCacheBlockSize, gCacheBlockSize);
+  }
+  
+  return length;
 }

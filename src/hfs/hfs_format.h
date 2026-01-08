@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -32,6 +32,8 @@
  *
  */
 
+#include "../types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,15 +48,11 @@ extern "C" {
 enum {
 	kHFSSigWord		= 0x4244,	/* 'BD' in ASCII */
 	kHFSPlusSigWord		= 0x482B,	/* 'H+' in ASCII */
-	kHFSXSigWord		= 0x4858,	/* 'HX' in ASCII */
-
-	kHFSPlusVersion		= 0x0004,	/* 'H+' volumes are version 4 only */
-	kHFSXVersion		= 0x0005,	/* 'HX' volumes start with version 5 */
-
-	kHFSPlusMountVersion	= 0x31302E30,	/* '10.0' for Mac OS X */
-	kHFSJMountVersion	= 0x4846534a,	/* 'HFSJ' for journaled HFS+ on OS X */
-	kFSKMountVersion	= 0x46534b21	/* 'FSK!' for failed journal replay */
+	kHFSPlusVersion		= 0x0004,	/* will change as format changes */
+						/* version 4 shipped with Mac OS 8.1 */
+	kHFSPlusMountVersion	= 0x31302E30	/* '10.0' for Mac OS X */
 };
+
 
 /*
  * Mac OS X has a special directory for linked and unlinked files (HFS Plus only).
@@ -86,8 +84,6 @@ enum {
 };
 
 
-#ifndef _HFSUNISTR255_DEFINED_
-#define _HFSUNISTR255_DEFINED_
 /* Unicode strings are used for HFS Plus file and folder names */
 struct HFSUniStr255 {
 	u_int16_t	length;		/* number of unicode characters */
@@ -95,7 +91,6 @@ struct HFSUniStr255 {
 };
 typedef struct HFSUniStr255 HFSUniStr255;
 typedef const HFSUniStr255 *ConstHFSUniStr255Param;
-#endif /* _HFSUNISTR255_DEFINED_ */
 
 enum {
 	kHFSMaxVolumeNameChars		= 27,
@@ -228,7 +223,6 @@ enum {
 	kHFSAllocationFileID		= 6,	/* File ID of the allocation file (HFS Plus only) */
 	kHFSStartupFileID		= 7,	/* File ID of the startup file (HFS Plus only) */
 	kHFSAttributesFileID		= 8,	/* File ID of the attribute file (HFS Plus only) */
-	kHFSRepairCatalogFileID		= 14,	/* Used when rebuilding Catalog B-tree */
 	kHFSBogusExtentFileID		= 15,	/* Used for exchanging extents in extents file */
 	kHFSFirstUserCatalogNodeID	= 16
 };
@@ -238,7 +232,7 @@ struct HFSCatalogKey {
 	u_int8_t 	keyLength;		/* key length (in bytes) */
 	u_int8_t 	reserved;		/* reserved (set to zero) */
 	u_int32_t 	parentID;		/* parent folder ID */
-	u_int8_t 	nodeName[kHFSMaxFileNameChars + 1]; /* catalog node name */
+	u_char 		nodeName[kHFSMaxFileNameChars + 1]; /* catalog node name */
 };
 typedef struct HFSCatalogKey HFSCatalogKey;
 
@@ -270,15 +264,8 @@ enum {
 enum {
 	kHFSFileLockedBit	= 0x0000,	/* file is locked and cannot be written to */
 	kHFSFileLockedMask	= 0x0001,
-
 	kHFSThreadExistsBit	= 0x0001,	/* a file thread record exists for this file */
-	kHFSThreadExistsMask	= 0x0002,
-
-	kHFSHasAttributesBit	= 0x0002,	/* object has extended attributes */
-	kHFSHasAttributesMask	= 0x0004,
-
-	kHFSHasSecurityBit	= 0x0003,	/* object has security data (ACLs) */
-	kHFSHasSecurityMask	= 0x0008
+	kHFSThreadExistsMask	= 0x0002
 };
 
 
@@ -312,7 +299,7 @@ struct HFSPlusCatalogFolder {
 	FndrDirInfo 		userInfo;		/* Finder information */
 	FndrOpaqueInfo	 	finderInfo;		/* additional Finder information */
 	u_int32_t 		textEncoding;		/* hint for name conversions */
-	u_int32_t 		attrBlocks;		/* cached count of attribute data blocks */
+	u_int32_t 		reserved;		/* reserved - initialized as zero */
 };
 typedef struct HFSPlusCatalogFolder HFSPlusCatalogFolder;
 
@@ -355,7 +342,7 @@ struct HFSPlusCatalogFile {
 	FndrFileInfo 		userInfo;		/* Finder information */
 	FndrOpaqueInfo	 	finderInfo;		/* additional Finder information */
 	u_int32_t 		textEncoding;		/* hint for name conversions */
-	u_int32_t 		attrBlocks;		/* cached count of attribute data blocks */
+	u_int32_t 		reserved2;		/* reserved - initialized as zero */
 
 	/* Note: these start on double long (64 bit) boundry */
 	HFSPlusForkData 	dataFork;		/* size and block data for data fork */
@@ -368,7 +355,7 @@ struct HFSCatalogThread {
 	int16_t 	recordType;		/* == kHFSFolderThreadRecord or kHFSFileThreadRecord */
 	int32_t 	reserved[2];		/* reserved - initialized as zero */
 	u_int32_t 	parentID;		/* parent ID for this catalog node */
-	u_int8_t 	nodeName[kHFSMaxFileNameChars + 1]; /* name of this catalog node */
+	u_char 		nodeName[kHFSMaxFileNameChars + 1]; /* name of this catalog node */
 };
 typedef struct HFSCatalogThread HFSCatalogThread;
 
@@ -381,16 +368,31 @@ struct HFSPlusCatalogThread {
 };
 typedef struct HFSPlusCatalogThread HFSPlusCatalogThread;
 
-#ifdef __APPLE_API_UNSTABLE
+
 /*
   	These are the types of records in the attribute B-tree.  The values were
   	chosen so that they wouldn't conflict with the catalog record types.
 */
 enum {
-	kHFSPlusAttrInlineData	= 0x10,    /* if size <  kAttrOverflowSize */
-	kHFSPlusAttrForkData	= 0x20,    /* if size >= kAttrOverflowSize */
-	kHFSPlusAttrExtents	= 0x30     /* overflow extents for large attributes */
+	kHFSPlusAttrInlineData	= 0x10,		/* if size <  kAttrOverflowSize */
+	kHFSPlusAttrForkData	= 0x20,		/* if size >= kAttrOverflowSize */
+	kHFSPlusAttrExtents	= 0x30		/* overflow extents for large attributes */
 };
+
+
+/*
+  	HFSPlusAttrInlineData
+  	For small attributes, whose entire value is stored within this one
+  	B-tree record.
+  	There would not be any other records for this attribute.
+*/
+struct HFSPlusAttrInlineData {
+	u_int32_t 	recordType;		/* == kHFSPlusAttrInlineData*/
+	u_int32_t 	reserved;
+	u_int32_t 	logicalSize;		/* size in bytes of userData*/
+	u_int8_t 	userData[2];		/* variable length; space allocated is a multiple of 2 bytes*/
+};
+typedef struct HFSPlusAttrInlineData HFSPlusAttrInlineData;
 
 
 /*
@@ -418,57 +420,14 @@ struct HFSPlusAttrExtents {
 };
 typedef struct HFSPlusAttrExtents HFSPlusAttrExtents;
 
-/*
- * Atrributes B-tree Data Record
- *
- * For small attributes, whose entire value is stored
- * within a single B-tree record.
- */
-struct HFSPlusAttrData {
-	u_int32_t    recordType;   /* == kHFSPlusAttrInlineData */
-	u_int32_t    reserved[2];
-	u_int32_t    attrSize;     /* size of attribute data in bytes */
-	u_int8_t     attrData[2];  /* variable length */
-};
-typedef struct HFSPlusAttrData HFSPlusAttrData;
-
-
-/* HFSPlusAttrInlineData is obsolete use HFSPlusAttrData instead */
-struct HFSPlusAttrInlineData {
-	u_int32_t 	recordType;
-	u_int32_t 	reserved;
-	u_int32_t 	logicalSize;
-	u_int8_t 	userData[2];
-};
-typedef struct HFSPlusAttrInlineData HFSPlusAttrInlineData;
-
-
 /*	A generic Attribute Record*/
 union HFSPlusAttrRecord {
 	u_int32_t 		recordType;
-	HFSPlusAttrInlineData 	inlineData;   /* NOT USED */
-	HFSPlusAttrData 	attrData;
+	HFSPlusAttrInlineData 	inlineData;
 	HFSPlusAttrForkData 	forkData;
 	HFSPlusAttrExtents 	overflowExtents;
 };
 typedef union HFSPlusAttrRecord HFSPlusAttrRecord;
-
-/* Attribute key */
-struct HFSPlusAttrKey {
-	u_int16_t     keyLength;       /* key length (in bytes) */
-	u_int16_t     pad;	       /* set to zero */
-	u_int32_t     fileID;          /* file associated with attribute */
-	u_int32_t     startBlock;      /* first attribue allocation block number for extents */
-	u_int16_t     attrNameLen;     /* number of unicode characters */
-	u_int16_t     attrName[127];   /* attribute name (Unicode) */
-};
-typedef struct HFSPlusAttrKey HFSPlusAttrKey;
-
-#define kHFSPlusAttrKeyMaximumLength   (sizeof(HFSPlusAttrKey) - sizeof(u_int16_t))
-#define kHFSPlusAttrKeyMinimumLength   (kHFSPlusAttrKeyMaximumLength - (127 * sizeof(u_int16_t)))
-
-#endif /* __APPLE_API_UNSTABLE */
-
 
 /* Key and node lengths */
 enum {
@@ -483,6 +442,7 @@ enum {
 	kHFSPlusAttrMinNodeSize		= 4096
 };
 
+
 /* HFS and HFS Plus volume attribute bits */
 enum {
 							/* Bits 0-6 are reserved (always cleared by MountVol call) */
@@ -492,8 +452,7 @@ enum {
 	kHFSVolumeNoCacheRequiredBit = 10,		/* don't cache volume blocks (i.e. RAM or ROM disk) */
 	kHFSBootVolumeInconsistentBit = 11,		/* boot volume is inconsistent (System 7.6 and later) */
 	kHFSCatalogNodeIDsReusedBit = 12,
-	kHFSVolumeJournaledBit = 13,			/* this volume has a journal on it */
-	kHFSVolumeInconsistentBit = 14,			/* serious inconsistencies detected at runtime */
+							/* Bits 13-14 are reserved for future use */
 	kHFSVolumeSoftwareLockBit	= 15,		/* volume is locked by software */
 
 	kHFSVolumeHardwareLockMask	= 1 << kHFSVolumeHardwareLockBit,
@@ -502,8 +461,6 @@ enum {
 	kHFSVolumeNoCacheRequiredMask = 1 << kHFSVolumeNoCacheRequiredBit,
 	kHFSBootVolumeInconsistentMask = 1 << kHFSBootVolumeInconsistentBit,
 	kHFSCatalogNodeIDsReusedMask = 1 << kHFSCatalogNodeIDsReusedBit,
-	kHFSVolumeJournaledMask	= 1 << kHFSVolumeJournaledBit,
-	kHFSVolumeInconsistentMask = 1 << kHFSVolumeInconsistentBit,
 	kHFSVolumeSoftwareLockMask	= 1 << kHFSVolumeSoftwareLockBit,
 	kHFSMDBAttributesMask		= 0x8380
 };
@@ -525,7 +482,7 @@ struct HFSMasterDirectoryBlock {
 	u_int16_t 		drAlBlSt;	/* first allocation block in volume */
 	u_int32_t 		drNxtCNID;	/* next unused catalog node ID */
 	u_int16_t 		drFreeBks;	/* number of unused allocation blocks */
-	u_int8_t 		drVN[kHFSMaxVolumeNameChars + 1];  /* volume name */
+	u_char 			drVN[kHFSMaxVolumeNameChars + 1];  /* volume name */
 	u_int32_t 		drVolBkUp;	/* date and time of last backup */
 	u_int16_t 		drVSeqNum;	/* volume backup sequence number */
 	u_int32_t 		drWrCnt;	/* volume write count */
@@ -545,14 +502,6 @@ struct HFSMasterDirectoryBlock {
 typedef struct HFSMasterDirectoryBlock	HFSMasterDirectoryBlock;
 
 
-#ifdef __APPLE_API_UNSTABLE
-#define SET_HFS_TEXT_ENCODING(hint)  \
-	(0x656e6300 | ((hint) & 0xff))
-#define GET_HFS_TEXT_ENCODING(hint)  \
-	(((hint) & 0xffffff00) == 0x656e6300 ? (hint) & 0x000000ff : 0xffffffffU)
-#endif /* __APPLE_API_UNSTABLE */
-
-
 /* HFS Plus Volume Header - 512 bytes */
 /* Stored at sector #2 (3rd sector) and second-to-last sector. */
 struct HFSPlusVolumeHeader {
@@ -560,7 +509,7 @@ struct HFSPlusVolumeHeader {
 	u_int16_t 	version;		/* == kHFSPlusVersion */
 	u_int32_t 	attributes;		/* volume attributes */
 	u_int32_t 	lastMountedVersion;	/* implementation version which last mounted volume */
-	u_int32_t 	journalInfoBlock;	/* block addr of journal info (if volume is journaled, zero otherwise) */
+	u_int32_t 	reserved;		/* reserved - initialized as zero */
 
 	u_int32_t 	createDate;		/* date and time of volume creation */
 	u_int32_t 	modifyDate;		/* date and time of last modification */
@@ -639,7 +588,7 @@ struct BTHeaderRec {
 	u_int16_t 	reserved1;		/* unused */
 	u_int32_t 	clumpSize;		/* reserved */
 	u_int8_t 	btreeType;		/* reserved */
-	u_int8_t 	keyCompareType;		/* Key string Comparison Type */
+	u_int8_t 	reserved2;		/* reserved */
 	u_int32_t 	attributes;		/* persistent attributes about the tree */
 	u_int32_t 	reserved3[16];		/* reserved */
 };
@@ -652,31 +601,8 @@ enum {
 	kBTVariableIndexKeysMask = 0x00000004	/* keys in index nodes are variable length */
 };
 
-
-/* Catalog Key Name Comparison Type */
-enum {
-	kHFSCaseFolding   = 0xCF,  /* case folding (case-insensitive) */
-	kHFSBinaryCompare = 0xBC  /* binary compare (case-sensitive) */
-};
-
-/* JournalInfoBlock - Structure that describes where our journal lives */
-struct JournalInfoBlock {
-	u_int32_t	flags;
-    	u_int32_t       device_signature[8];  // signature used to locate our device.
-	u_int64_t       offset;               // byte offset to the journal on the device
-	u_int64_t       size;                 // size in bytes of the journal
-	u_int32_t 	reserved[32];
-};
-typedef struct JournalInfoBlock JournalInfoBlock;
-
-enum {
-    kJIJournalInFSMask          = 0x00000001,
-    kJIJournalOnOtherDeviceMask = 0x00000002,
-    kJIJournalNeedInitMask      = 0x00000004
-};
-
-
 #pragma options align=reset
+
 #pragma pack(pop)
 
 #ifdef __cplusplus

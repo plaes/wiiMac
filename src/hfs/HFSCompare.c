@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2000-2003 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
  * The contents of this file constitute Original Code as defined in and
- * are subject to the Apple Public Source License Version 2.0 (the
+ * are subject to the Apple Public Source License Version 1.1 (the
  * "License").  You may not use this file except in compliance with the
  * License.  Please obtain a copy of the License at
  * http://www.apple.com/publicsource and read it before using this file.
@@ -28,48 +28,8 @@
  */
 
 #include "sl.h"
-#include "hfs_CaseTables.h"
+#include "CaseTables.h"
 
-#if ! UNCOMPRESSED
-
-static unsigned short *
-UncompressStructure(struct compressed_block *bp, int count, int size)
-{
-    unsigned short *out = MALLOC(size);
-    unsigned short *op = out;
-    unsigned short data;
-    int i, j;
-
-    for (i=0; i<count; i++, bp++) {
-        // If this happens (it shouldn't) please fix size and/or double check that count really is
-        // the number of elements in the array.
-        // This was a very hard bug to find, so please leave this code here.
-        if(out + size <= op + bp->count)
-        {
-            printf("HFS+ Unicode tables are malformed\n");
-        }
-        data = bp->data;
-        for (j=0; j<bp->count; j++) {
-            *op++ = data;
-            if (bp->type == kTypeAscending) data++;
-            else if (bp->type == kTypeAscending256) data += 256;
-        }
-    }
-    return out;
-}
-
-static void
-InitCompareTables(void)
-{
-    if (gCompareTable == 0) {
-        gCompareTable = UncompressStructure(gCompareTableCompressed,
-                                            kCompareTableNBlocks, kCompareTableDataSize);
-        gLowerCaseTable = UncompressStructure(gLowerCaseTableCompressed,
-                                            kLowerCaseTableNBlocks, kLowerCaseTableDataSize);
-    }
-}
-
-#endif /* ! UNCOMPRESSED */
 
 //_______________________________________________________________________
 //
@@ -81,15 +41,12 @@ InitCompareTables(void)
 //
 //_______________________________________________________________________
 
-int32_t	FastRelString(u_int8_t * str1, u_int8_t * str2)
+int32_t	FastRelString(char *str1, char *str2 )
 {
 	int32_t  bestGuess;
 	u_int8_t length, length2;
 
-#if ! UNCOMPRESED
-        InitCompareTables();
-#endif
-
+	
 	length = *(str1++);
 	length2 = *(str2++);
 
@@ -111,7 +68,7 @@ int32_t	FastRelString(u_int8_t * str1, u_int8_t * str2)
 		bChar = *(str2++);
 		
 		if (aChar != bChar)	/* If they don't match exacly, do case conversion */
-		{
+		{	
 			u_int16_t aSortWord, bSortWord;
 
 			aSortWord = gCompareTable[aChar];
@@ -133,6 +90,7 @@ int32_t	FastRelString(u_int8_t * str1, u_int8_t * str2)
 	/* if you got to here, then return bestGuess */
 	return bestGuess;
 }	
+
 
 
 //
@@ -192,37 +150,34 @@ int32_t	FastRelString(u_int8_t * str1, u_int8_t * str2)
 //			return 1;
 //
 
-int32_t FastUnicodeCompare( u_int16_t * str1, register u_int32_t length1,
-                            u_int16_t * str2, register u_int32_t length2)
+int32_t FastUnicodeCompare (u_int16_t *str1, register u_int32_t length1,
+			    u_int16_t *str2, register u_int32_t length2)
 {
 	register u_int16_t c1,c2;
 	register u_int16_t temp;
-
-#if ! UNCOMPRESSED
-        InitCompareTables();
-#endif
 
 	while (1) {
 		/* Set default values for c1, c2 in case there are no more valid chars */
 		c1 = 0;
 		c2 = 0;
-
+		
 		/* Find next non-ignorable char from str1, or zero if no more */
 		while (length1 && c1 == 0) {
-      c1 = SWAP_BE16(*(str1++));
+			c1 = *(str1++);
 			--length1;
 			if ((temp = gLowerCaseTable[c1>>8]) != 0)		// is there a subtable for this upper byte?
 				c1 = gLowerCaseTable[temp + (c1 & 0x00FF)];	// yes, so fold the char
 		}
-
+		
+		
 		/* Find next non-ignorable char from str2, or zero if no more */
 		while (length2 && c2 == 0) {
-      c2 = SWAP_BE16(*(str2++));
+			c2 = *(str2++);
 			--length2;
 			if ((temp = gLowerCaseTable[c2>>8]) != 0)		// is there a subtable for this upper byte?
 				c2 = gLowerCaseTable[temp + (c2 & 0x00FF)];	// yes, so fold the char
 		}
-
+		
 		if (c1 != c2)	/* found a difference, so stop looping */
 			break;
 		
@@ -234,43 +189,6 @@ int32_t FastUnicodeCompare( u_int16_t * str1, register u_int32_t length1,
 		return -1;
 	else
 		return 1;
-}
-
-
-//
-//  BinaryUnicodeCompare - Compare two Unicode strings; produce a relative ordering
-//  Compared using a 16-bit binary comparison (no case folding)
-//
-int32_t BinaryUnicodeCompare (u_int16_t * str1, u_int32_t length1,
-                              u_int16_t * str2, u_int32_t length2)
-{
-        register u_int16_t c1, c2;
-        int32_t bestGuess;
-        u_int32_t length;
-
-        bestGuess = 0;
-
-        if (length1 < length2) {
-                length = length1;
-                --bestGuess;
-        } else if (length1 > length2) {
-                length = length2;
-                ++bestGuess;
-        } else {
-                length = length1;
-        }
-
-        while (length--) {
-                c1 = *(str1++);
-                c2 = *(str2++);
-
-                if (c1 > c2)
-                        return (1);
-                if (c1 < c2)
-                        return (-1);
-        }
-
-        return (bestGuess);
 }
 
 
@@ -301,16 +219,15 @@ int32_t BinaryUnicodeCompare (u_int16_t * str1, u_int32_t length1,
  * bufsize is the size of the output buffer in bytes
  */
 void
-utf_encodestr( const u_int16_t * ucsp, int ucslen,
-               u_int8_t * utf8p, u_int32_t bufsize)
+utf_encodestr(const u_int16_t *ucsp, int ucslen, u_int8_t *utf8p, u_int32_t bufsize)
 {
 	u_int8_t *bufend;
 	u_int16_t ucs_ch;
-
+	
 	bufend = utf8p + bufsize;
 
 	while (ucslen-- > 0) {
-		    ucs_ch = SWAP_BE16(*ucsp++);
+		ucs_ch = *ucsp++;
 
 		if (ucs_ch < 0x0080) {
 			if (utf8p >= bufend)
@@ -332,8 +249,9 @@ utf_encodestr( const u_int16_t * ucsp, int ucslen,
 			*utf8p++ = ((ucs_ch >> 6) & 0x3f) | 0x80;
 			*utf8p++ = ((ucs_ch) & 0x3f)      | 0x80;
 		}
+		
 	}
-
+	
 	*utf8p = '\0';
 }
 
@@ -345,7 +263,8 @@ utf_encodestr( const u_int16_t * ucsp, int ucslen,
  * ucslen is the number of UCS-2 output characters (not bytes)
  * bufsize is the size of the output buffer in bytes
  */
-void utf_decodestr(const u_int8_t * utf8p, u_int16_t * ucsp, u_int16_t * ucslen, u_int32_t bufsize)
+void
+utf_decodestr(const u_int8_t *utf8p, u_int16_t *ucsp, u_int16_t *ucslen, u_int32_t bufsize)
 {
 	u_int16_t *bufstart;
 	u_int16_t *bufend;
@@ -363,8 +282,7 @@ void utf_decodestr(const u_int8_t * utf8p, u_int16_t * ucsp, u_int16_t * ucslen,
 		if (byte < 0x80) {
 			ucs_ch = byte;
 			
-		            *ucsp++ = SWAP_BE16(ucs_ch);
-			
+			*ucsp++ = ucs_ch;
 			continue;
 		}
 
@@ -396,8 +314,8 @@ void utf_decodestr(const u_int8_t * utf8p, u_int16_t * ucsp, u_int16_t * ucslen,
 			goto stop;
 		ucs_ch += (byte & 0x3F);  
 
-                    *ucsp++ = SWAP_BE16(ucs_ch);
+		*ucsp++ = ucs_ch;
 	}
 stop:
-            *ucslen = SWAP_BE16(ucsp - bufstart);
+	*ucslen = ucsp - bufstart;
 }

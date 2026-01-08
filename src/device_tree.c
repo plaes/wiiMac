@@ -8,6 +8,7 @@
 #include "macho_loader.h"
 #include "string.h"
 #include "types.h"
+#include "sl.h"
 
 struct DTProperty {
   char name[32];                        // NUL terminated property name

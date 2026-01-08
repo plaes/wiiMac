@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2003 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
  * The contents of this file constitute Original Code as defined in and
- * are subject to the Apple Public Source License Version 2.0 (the
+ * are subject to the Apple Public Source License Version 1.1 (the
  * "License").  You may not use this file except in compliance with the
  * License.  Please obtain a copy of the License at
  * http://www.apple.com/publicsource and read it before using this file.
@@ -19,15 +19,31 @@
  * 
  * @APPLE_LICENSE_HEADER_END@
  */
+/*
+ *  fs.h - Externs for the File System Modules
+ *
+ *  Copyright (c) 1999-2000 Apple Computer, Inc.
+ *
+ *  DRI: Josh de Cesare
+ */
 
+#ifndef _BOOTX_FS_H_
+#define _BOOTX_FS_H_
+
+// Externs for cache.c
+extern unsigned long gCacheHits;
+extern unsigned long gCacheMisses;
+extern unsigned long gCacheEvicts;
+
+extern void CacheInit(CICell ih, long chunkSize);
+extern long CacheRead(CICell ih, char *buffer, long long offset,
+		      long length, long cache);
+
+// Externs for hfs.c
 extern long HFSInitPartition(CICell ih);
-extern long HFSLoadFile(CICell ih, char * filePath);
-extern long HFSReadFile(CICell ih, char * filePath, void *base, uint64_t offset, uint64_t length);
-extern long HFSGetDirEntry(CICell ih, char * dirPath, long * dirIndex,
-                           char ** name, long * flags, long * time,
-                           FinderInfo * finderInfo, long * infoValid);
-extern void HFSGetDescription(CICell ih, char *str, long strMaxLen);
-extern long HFSGetFileBlock(CICell ih, char *str, unsigned long long *firstBlock);
-extern long HFSGetUUID(CICell ih, char *uuidStr);
-extern void HFSFree(CICell ih);
-extern bool HFSProbe (const void *buf);
+extern long HFSLoadFile(CICell ih, char *filePath);
+extern long HFSGetDirEntry(CICell ih, char *dirPath,
+			   long *dirIndex, char **name,
+			   long *flags, long *time);
+
+#endif /* ! _BOOTX_FS_H_ */

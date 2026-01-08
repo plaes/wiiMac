@@ -8,6 +8,7 @@
 #include "macho_loader.h"
 #include "string.h"
 #include "types.h"
+#include "sl.h"
 
 #define LC_SEGMENT 1
 #define LC_SYMTAB 2
