@@ -18,7 +18,7 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "device_tree.h"
 #include "string.h"
 #include "ipc.h"
-#include "macho_loader.h"
+#include "macho.h"
 #include "mini_ipc.h"
 #include "nandfs.h"
 #include "fat.h"
@@ -29,12 +29,24 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "input.h"
 #include "console.h"
 #include "irq.h"
-#include "usb/core/core.h"
-#include "usb/drivers/class/hid.h"
 #include "sha1.h"
 #include "hollywood.h"
+#include "apm.h"
+#include "hfs/sl.h"
 
+#define MINIMUM_MINI_VERSION 0x00010003
 #define kMacOSXSignature 0x4D4F5358
+
+static bool mini_version_too_old = true;
+static u32 mini_version = 0;
+static DSTATUS disk_stat = -1;
+static int selected_partition = -1;
+static bool loading_kernel = false;
+static bool kernel_load_failed = false;
+static bool loaded_kernel = false;
+static CICell ih = 0;
+static int autoboot_ms = -1;
+static int autoboot_ms_threshold = 10000;
 
 static char ascii(char s) {
 	if(s < 0x20) return '.';
@@ -92,17 +104,96 @@ static int start_mach_kernel() {
   return -1;
 }
 
+static void print_instructions() {
+  console_println("");
+  console_println("Insert an SD card formatted as Apple Partition Map");
+  console_println("containing an HFS+ formatted Mac OS X boot partition.");
+  clear_remainder_reset_y();
+}
+
+static void redraw_screen() {
+  console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
+  console_println("(c) 2025 Bryan Keller - @blk19_");
+  
+  console_println("");
+  
+  if (mini_version_too_old) {
+    console_println("The MINI version (%d.%0d) is too old. Required: %d.%0d.", (mini_version >> 16), (mini_version & 0xFFFF), (MINIMUM_MINI_VERSION >> 16), (MINIMUM_MINI_VERSION & 0xFFFF));
+    console_println("Run the latest HackMii installer to resolve this issue.");
+    clear_remainder_reset_y();
+    return;
+  }
+
+  if (is_verbose_boot) {
+    console_println("Verbose boot enabled.");
+  } else {
+    console_println("");
+  }
+  
+  console_println("");
+  
+  if (disk_stat & STA_NODISK) {
+    console_println("No SD card detected.");
+    print_instructions();
+    return;
+  }
+  
+  if (disk_stat & STA_NOINIT) {
+    console_println("Failed to read SD card.");
+    print_instructions();
+    return;
+  }
+  
+  if (found_partitions_count <= 0) {
+    console_println("No partitions found.");
+    print_instructions();
+    return;
+  }
+  
+  console_println("Partitions:");
+  for (int i = 0; i < found_partitions_count; i++) {
+    int partition_index = i + 1;
+
+    apm_entry_t partition = found_partitions[i];
+    long long partitionOffset = (long long)partition.startingSector * 512;
+    SetBasePosition(partitionOffset);
+    ih++; // change ih each time so HFS code never short-circuits
+    HFSInitPartition(ih);
+    u_char *partitionName = HFSGetPartitionName(ih);
+    
+    console_println("%c %d: %s     %s", partition_index == partition_number ? '*' : ' ', partition_index, partition.type, partitionName);
+  }
+  
+  if (autoboot_ms != -1) {
+    console_println("");
+    console_println("Booting from disk0s%d in %ds", partition_number, (autoboot_ms_threshold - autoboot_ms) / 1000);
+  }
+  
+  if (loading_kernel) {
+    console_println("");
+    console_println("Loading mach_kernel from root of disk0s%d...", partition_number);
+  }
+  
+  if (kernel_load_failed) {
+    console_println("");
+    console_println("Failed to load mach_kernel from root of disk0s%d.", partition_number);
+  }
+  
+  if (loaded_kernel) {
+    console_println("");
+    console_println("Calling kernel...");
+  }
+  
+  clear_remainder_reset_y();
+}
+
 int main(void) {
 	// Cannot gecko_init without delay
 	udelay(1000000);
 	gecko_init();
 
 	exception_init();
-
 	irq_initialize();
-	irq_bw_enable(BW_PI_IRQ_RESET);
-	irq_bw_enable(BW_PI_IRQ_HW);
-  irq_hw_enable(IRQ_RESET);
 
 	ipc_initialize();
 	ipc_slowping();
@@ -112,21 +203,98 @@ int main(void) {
 	VIDEO_Init(vmode);
 	VIDEO_SetFrameBuffer(get_xfb());
 	VISetupEncoder();
-
-	console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
-	console_println("(c) 2025 Bryan Keller - @blk19_");
-	console_println("");
   
-  // Zero all memory leading up to the file load address
-  memset((void*)0x2FF, 0, kernel_file_load_address - 0x2FF);
+  VI_DumpRegisters();
+  
+  mini_version = ipc_getvers();
+  mini_version_too_old = mini_version < MINIMUM_MINI_VERSION;
+  redraw_screen();
+  while (mini_version_too_old) { }
+  
+  while (!loaded_kernel) {
+    DSTATUS prev_disk_stat = disk_stat;
+    disk_stat = disk_initialize(0);
+    if (disk_stat != prev_disk_stat) {
+      autoboot_ms = -1;
+      selected_partition = -1;
+      loading_kernel = false;
+      kernel_load_failed = false;
+      
+      find_partitions();
+      for (int i = 0; i < found_partitions_count; i++) {
+        apm_entry_t partition = found_partitions[i];
+        if (selected_partition == -1 && (strcmp(partition.type, "Apple_HFS") == 0 || strcmp(partition.type, "Apple_HFSX") == 0)) {
+          selected_partition = i;
+        }
+      }
+      
+      if (selected_partition != -1) {
+        autoboot_ms = 0;
+      }
+    }
+    
+    
+    u16 input = input_read();
+    bool load_kernel = false;
+    switch (input) {
+      case GPIO_POWER: {
+        autoboot_ms = -1;
+        if (selected_partition != -1 && found_partitions_count > 0) {
+          loading_kernel = false;
+          kernel_load_failed = false;
+          selected_partition = (selected_partition + 1) % found_partitions_count;
+        }
+        break;
+      }
+        
+      case GPIO_RESET: {
+        load_kernel = true;
+        break;
+      }
+        
+      case GPIO_EJECT:
+        is_verbose_boot = !is_verbose_boot;
+        break;
+    }
+    
+    partition_number = selected_partition + 1;
+    
+    if (autoboot_ms >= autoboot_ms_threshold || load_kernel) {
+      autoboot_ms = -1;
+      loading_kernel = true;
+      redraw_screen();
+      apm_entry_t partition = found_partitions[selected_partition];
+      long long partitionOffset = (long long)partition.startingSector * 512;
+      SetBasePosition(partitionOffset);
+      printf("Load mach_kernel from offset: %lu\n", partitionOffset);
+      ih++; // change ih each time so HFS code never short-circuits
+      if (HFSLoadFile(ih, "\\mach_kernel") > 0) {
+        printf("Loaded mach_kernel\n");
+        // Zero all memory leading up to the file load address
+        memset((void*)0x2FF, 0, kLoadAddr - 0x2FF);
+        if (load_mach_kernel() == 0) {
+          printf("Loaded mach_kernel\n");
+          loaded_kernel = true;
+        }
+      }
+      
+      if (!loaded_kernel) {
+        printf("Failed to load mach_kernel\n");
+        loading_kernel = false;
+        kernel_load_failed = true;
+      }
+    }
+    
+    redraw_screen();
+    udelay(100000);
+    
+    if (autoboot_ms != -1) {
+      autoboot_ms += 100;
+    }
+  }
 
-	if (load_mach_kernel("/wiiMac/mach_kernel") != 0) {
-		return -1;
-	}
-
-	console_println("Loaded Mach Kernel");
-
-	console_println("Setting up device tree and boot args...");
+  printf("\n");
+	printf("Setting up device tree and boot args...");
 
 	set_up_boot_args();
 
@@ -137,8 +305,8 @@ int main(void) {
   printf("\n");
   printf("Top of kernel data: %08x\n", ((boot_args_t*)boot_args_address)->topOfKernelData);
   
-  console_println("");
-  console_println("Calling Mach Kernel @ 0x%08x; boot args: 0x%08x", kernel_entry_point, boot_args_address);
+  printf("\n");
+  printf("Calling Mach Kernel @ 0x%08x; boot args: 0x%08x\n", kernel_entry_point, boot_args_address);
   
   udelay(1000000);
   draw_screen_for_graphical_boot();

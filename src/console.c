@@ -51,7 +51,7 @@ typedef struct {
 
 static u32 *xfb = (u32*)0x81700000; // @ 23 MB
 static int y_add = 0;
-static int current_y = CONSOLE_Y;
+static int current_y = 0;
 
 u32 *font_yuv[255];
 
@@ -278,6 +278,9 @@ void print_str(const char *str, size_t len) {
     }
   }
   
+  int end_text_x = len * 10;
+  fill_rect(end_text_x, current_y, CONSOLE_WIDTH - end_text_x, CONSOLE_CHAR_HEIGHT, 0, 0, 0);
+  
   current_y += CONSOLE_ROW_HEIGHT;
 }
 
@@ -293,7 +296,6 @@ int console_println(const char *fmt, ...)
   va_end(args);
   
   print_str(buffer, i);
-  printf("%s\n", buffer);
   
   return i;
 }
@@ -343,12 +345,17 @@ void init_fb(int vmode) {
       y_add = 48;
       break;
   }
-  
+
   fb  = xfb;
   for (i = 0; i < (480 + (y_add*2)) * 2 * (640 >> 1); i++) {
     *fb = fill_col;
     fb++;
   }
+}
+
+void clear_remainder_reset_y() {
+  fill_rect(0, current_y, CONSOLE_WIDTH, CONSOLE_HEIGHT, 0, 0, 0);
+  current_y = 0;
 }
 
 void draw_screen_for_graphical_boot() {

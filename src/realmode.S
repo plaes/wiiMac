@@ -70,94 +70,94 @@ _realmode_vector:
 	mtspr 1008,3
 	isync
 
-    // clear all BATs
-    li 0,0
-    mtspr IBAT0U,0
-    mtspr IBAT1U,0
-    mtspr IBAT2U,0
-    mtspr IBAT3U,0
-    mtspr IBAT4U,0
-    mtspr IBAT5U,0
-    mtspr IBAT6U,0
-    mtspr IBAT7U,0
-    isync
-    mtspr DBAT0U,0
-    mtspr DBAT1U,0
-    mtspr DBAT2U,0
-    mtspr DBAT3U,0
-    mtspr DBAT4U,0
-    mtspr DBAT5U,0
-    mtspr DBAT6U,0
-    mtspr DBAT7U,0
-    isync
+  // clear all BATs
+  li 0,0
+  mtspr IBAT0U,0
+  mtspr IBAT1U,0
+  mtspr IBAT2U,0
+  mtspr IBAT3U,0
+  mtspr IBAT4U,0
+  mtspr IBAT5U,0
+  mtspr IBAT6U,0
+  mtspr IBAT7U,0
+  isync
+  mtspr DBAT0U,0
+  mtspr DBAT1U,0
+  mtspr DBAT2U,0
+  mtspr DBAT3U,0
+  mtspr DBAT4U,0
+  mtspr DBAT5U,0
+  mtspr DBAT6U,0
+  mtspr DBAT7U,0
+  isync
 
-    // clear all SRs
-    lis 0,0x8000
-    mtsr  0,0
-    mtsr  1,0
-    mtsr  2,0
-    mtsr  3,0
-    mtsr  4,0
-    mtsr  5,0
-    mtsr  6,0
-    mtsr  7,0
-    mtsr  8,0
-    mtsr  9,0
-    mtsr 10,0
-    mtsr 11,0
-    mtsr 12,0
-    mtsr 13,0
-    mtsr 14,0
-    mtsr 15,0
-    isync
+  // clear all SRs
+  lis 0,0x8000
+  mtsr  0,0
+  mtsr  1,0
+  mtsr  2,0
+  mtsr  3,0
+  mtsr  4,0
+  mtsr  5,0
+  mtsr  6,0
+  mtsr  7,0
+  mtsr  8,0
+  mtsr  9,0
+  mtsr 10,0
+  mtsr 11,0
+  mtsr 12,0
+  mtsr 13,0
+  mtsr 14,0
+  mtsr 15,0
+  isync
 
 	// set (I|D)BAT0 for 32MB@0x00000000,
-    // real 0x00000000 (start of MEM1), WIMG=0000, R/W
-    lis 3,0x0000
-    ori 3,3,2
-    lis 4,0x0000
-    ori 4,4,0x03FF
-    mtspr IBAT0L,3
-    mtspr IBAT0U,4
-    isync
-    mtspr DBAT0L,3
-    mtspr DBAT0U,4
-    isync
+  // real 0x00000000 (start of MEM1), WIMG=0000, R/W
+  lis 3,0x0000
+  ori 3,3,2
+  lis 4,0x0000
+  ori 4,4,0x03FF
+  mtspr IBAT0L,3
+  mtspr IBAT0U,4
+  isync
+  mtspr DBAT0L,3
+  mtspr DBAT0U,4
+  isync
 
-    // set (I|D)BAT1 for 64MB@0x10000000,
-    // real 0x10000000 (start of MEM2), WIMG=0000, R/W
-    lis 3,0x1000
-    ori 3,3,2
-    lis 4,0x1000
-    ori 4,4,0x07FF
-    mtspr IBAT1L,3
-    mtspr IBAT1U,4
-    isync
-    mtspr DBAT1L,3
-    mtspr DBAT1U,4
-    isync
+  // set (I|D)BAT1 for 64MB@0x10000000,
+  // real 0x10000000 (start of MEM2), WIMG=0000, R/W
+  lis 3,0x1000
+  ori 3,3,2
+  lis 4,0x1000
+  ori 4,4,0x07FF
+  mtspr IBAT1L,3
+  mtspr IBAT1U,4
+  isync
+  mtspr DBAT1L,3
+  mtspr DBAT1U,4
+  isync
 
-    // set DBAT2 for 32MB@0x0C000000,
-    // real 0x0C000000 (I/O Base), WIMG=0101, R/W
-    lis 3,0x0C00
-    ori 3,3,0x2a
-    lis 4,0x0C00
-    ori 4,4,0x03FF
-    isync
-    mtspr DBAT2L,3
-    mtspr DBAT2U,4
-    isync
+  // set DBAT2 for 32MB@0x0C000000,
+  // real 0x0C000000 (I/O Base), WIMG=0101, R/W
+  lis 3,0x0C00
+  ori 3,3,0x2a
+  lis 4,0x0C00
+  ori 4,4,0x03FF
+  isync
+  mtspr DBAT2L,3
+  mtspr DBAT2U,4
+  isync
 
-    // set DBAT3 for 256MB@0x80000000,
-    // real 0x00000000 (used for video), WIMG=0101, R/W
-    lis 3,0x0000
-    ori 3,3,0x2a
-    lis 4,0x8000
-    ori 4,4,0x07FF
-    isync
-    mtspr DBAT3L,3
-    mtspr DBAT3U,4
-    isync
+  // set DBAT3 for 256MB@0x80000000,
+  // real 0x00000000 (used for video), WIMG=0101, R/W
+  lis 3,0x0000
+  ori 3,3,0x2a
+  lis 4,0x8000
+  ori 4,4,0x07FF
+  isync
+  mtspr DBAT3L,3
+  mtspr DBAT3U,4
+  isync
 
 	// set MSR[DR:IR] = 11, jump to _start
 	lis 3,_start@h

@@ -10,8 +10,6 @@
 #define boot_args_address (0x00700000) // @ 7 MB
 #define boot_args_size (0x000001fc)
 
-const char boot_args_command_line[] = "-v rd=disk0s4";
-
 /*
  * Video information..
  */
@@ -47,6 +45,9 @@ typedef struct boot_args {
     u32	deviceTreeLength;           /* Length of flattened tree */
     u32	topOfKernelData;            /* Highest address used in kernel data area */
 } boot_args_t;
+
+int partition_number = -1;
+bool is_verbose_boot = false;
 
 void set_up_boot_args();
 

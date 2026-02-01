@@ -5,10 +5,9 @@
 #include "boot_args.h"
 #include "bootmii_ppc.h"
 #include "device_tree.h"
-#include "macho_loader.h"
+#include "macho.h"
 #include "string.h"
-#include "types.h"
-#include "sl.h"
+#include "hfs/sl.h"
 
 struct DTProperty {
   char name[32];                        // NUL terminated property name

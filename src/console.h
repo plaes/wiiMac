@@ -17,6 +17,7 @@ void draw_screen_for_graphical_boot();
 void print_str(const char *str, size_t len);
 void print_str_noscroll(int x, int y, char *str);
 int console_println(const char *fmt, ...);
+void clear_remainder_reset_y();
 u32 *get_xfb(void);
 
 extern unsigned char console_font_8x16[];

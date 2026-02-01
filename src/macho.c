@@ -4,11 +4,10 @@
 
 #include "bootmii_ppc.h"
 #include "console.h"
-#include "ff.h"
-#include "macho_loader.h"
+#include "macho.h"
 #include "string.h"
 #include "types.h"
-#include "sl.h"
+#include "hfs/sl.h"
 
 #define LC_SEGMENT 1
 #define LC_SYMTAB 2
@@ -108,48 +107,14 @@ typedef struct ppc_thread_state {
     u32 vrsave;	                /* Vector Save Register */
 } ppc_thread_state_t;
 
-static int decode_mach_kernel(void *fbuf);
-static int handle_load_cmd(load_command_t *load_cmd, void *fbuf);
-static int handle_lc_segment(load_command_t *load_cmd, void *fbuf);
-static int load_segment(void *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
-static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf);
+static int handle_load_cmd(load_command_t *load_cmd);
+static int handle_lc_segment(load_command_t *load_cmd);
+static int load_segment(u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
+static int handle_lc_symtab(load_command_t *load_cmd);
 static int handle_lc_unixthread(load_command_t *load_cmd);
 
-int load_mach_kernel(const char *kernel_path) {
-    FATFS fs;
-    FRESULT res;
-    FIL fp;
-
-    console_println("Loading Mach Kernel from SD:%s...", kernel_path);
-
-    // Mount the SD card
-    res = f_mount(0, &fs);
-    if (res != FR_OK) {
-        console_println("Failed to mount SD card! Error code: %d", res);
-        return -1;
-    }
-
-    res = f_open(&fp, kernel_path, FA_READ);
-    if (res != FR_OK) {
-        console_println("Failed to open kernel at SD:%s", kernel_path);
-        return -1;
-    }
-
-    size_t fsize = fp.fsize;
-    void *fbuf = (u8*)kernel_file_load_address;
-
-    u32 bytesRead;
-    res = f_read(&fp, fbuf, fsize, &bytesRead);
-    if (res != FR_OK && bytesRead == fsize) {
-        console_println("Failed to read kernel at SD:%s", kernel_path);
-        return -1;
-    }
-
-    return decode_mach_kernel(fbuf);
-}
-
-static int decode_mach_kernel(void *fbuf) {
-    mach_header_t *header = (mach_header_t *)fbuf;
+int load_mach_kernel() {
+    mach_header_t *header = (mach_header_t *)kLoadAddr;
 
     printf("\n");
     printf("Found kernel header:\n");
@@ -164,12 +129,12 @@ static int decode_mach_kernel(void *fbuf) {
     printf("\n");
     printf("Decoding Mach Kernel...\n");
 
-    void *cmds_offset = fbuf + sizeof(mach_header_t);
+    void *cmds_offset = ((void *)kLoadAddr) + sizeof(mach_header_t);
     u32 num_cmds = header->ncmds;
 
     for (u32 i = 0; i < num_cmds; i++) {
         load_command_t *cmd = (load_command_t *)cmds_offset;
-        int ret = handle_load_cmd(cmd, fbuf);
+        int ret = handle_load_cmd(cmd);
         if (ret != 0) {
             return -1;
         }
@@ -178,19 +143,19 @@ static int decode_mach_kernel(void *fbuf) {
     }
 
     kernel_header_size = (u32)cmds_offset - (u32)header;
-    memcpy((void*)kernel_header_start, header, kernel_header_size);
+    memcpy((void*)kHeaderAddr, header, kernel_header_size);
 
     return 0;
 }
 
-static int handle_load_cmd(load_command_t *load_cmd, void *fbuf) {
+static int handle_load_cmd(load_command_t *load_cmd) {
     int ret = 0;
     switch (load_cmd->cmd) {
         case LC_SEGMENT:
-            ret = handle_lc_segment(load_cmd, fbuf);
+            ret = handle_lc_segment(load_cmd);
         break;
         case LC_SYMTAB:
-            ret = handle_lc_symtab(load_cmd, fbuf);
+            ret = handle_lc_symtab(load_cmd);
         break;
         case LC_UNIXTHREAD:
             ret = handle_lc_unixthread(load_cmd);
@@ -204,13 +169,13 @@ static int handle_load_cmd(load_command_t *load_cmd, void *fbuf) {
     return ret;
 }
 
-static int handle_lc_segment(load_command_t *load_cmd, void *fbuf) {
+static int handle_lc_segment(load_command_t *load_cmd) {
     printf("LC_SEGMENT %d\n", load_cmd->cmdsize);
 
     segment_command_t *segment = (segment_command_t *)load_cmd;
     printf("Handle %s\n", segment->segname);
 
-    int ret = load_segment(fbuf, segment->fileoff, segment->filesize, segment->vmaddr, segment->vmsize);
+    int ret = load_segment(segment->fileoff, segment->filesize, segment->vmaddr, segment->vmsize);
     if (ret != 0) {
         printf("Failed to load segment %s into memory\n", segment->segname);
         return -1;
@@ -229,9 +194,9 @@ static int handle_lc_segment(load_command_t *load_cmd, void *fbuf) {
     return 0;
 }
 
-static int load_segment(void *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
-    void *src = fbuf + foff;
-    void *dst = (void*)vmaddr;
+static int load_segment(u32 foff, u32 fsize, u32 vmaddr, u32 vmsize) {
+    void *src = ((void *)kLoadAddr) + foff;
+    void *dst = (void *)vmaddr;
 
     printf("memcpy 0x%08x-0x%08x to 0x%08x-0x%08x\n", src, src + fsize, dst, dst + fsize);
 
@@ -245,7 +210,7 @@ static int load_segment(void *fbuf, u32 foff, u32 fsize, u32 vmaddr, u32 vmsize)
     return 0;
 }
 
-static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf) {
+static int handle_lc_symtab(load_command_t *load_cmd) {
     printf("LC_SYMTAB %d\n", load_cmd->cmdsize);
 
     symtab_command_t *symtab = (symtab_command_t *)load_cmd;
@@ -253,7 +218,7 @@ static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf) {
     u32 symSize = symtab->stroff - symtab->symoff;
     u32 totalSize = symSize + symtab->strsize;
     u32 symtabSize = totalSize + sizeof(symtab_command_t);
-    void *symtabAddr = (u8*)kernel_symtab_start;
+    void *symtabAddr = (u8 *)kSymtabAddr;
     printf("0x%08x-0x%08x\n", symtabAddr, symtabAddr+symtabSize);
 
     symtab_command_t *symtabSave = (symtab_command_t *)symtabAddr;
@@ -263,7 +228,7 @@ static int handle_lc_symtab(load_command_t *load_cmd, void *fbuf) {
     symtabSave->stroff = symOff + symSize;
     symtabSave->strsize = symtab->strsize;
 
-    memcpy((void*)symOff, fbuf + symtab->symoff, totalSize);
+    memcpy((void *)symOff, ((void *)kLoadAddr) + symtab->symoff, totalSize);
 
     kernel_symtab_size = symtabSize;
 
