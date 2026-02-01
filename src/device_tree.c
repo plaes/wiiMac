@@ -59,13 +59,20 @@ void build_device_tree() {
   device_tree_end = device_tree_start;
   
   // /
-  create_node(/*nProps=*/4, /*nChildren=*/5);
+  create_node(/*nProps=*/5, /*nChildren=*/6);
   {
     const char *name = "device-tree";
     add_property("name", name, strlen(name) + 1);
     
-    const char *compatible = "nintendo,wii";
-    add_property("compatible", compatible, strlen(compatible) + 1);
+    const char *model = "iMac,1";
+    add_property("model", model, strlen(model) + 1);
+    
+    const char compatible_root[] =
+    "iMac,1\0"
+    "MacRISC\0"
+    "PowerMac\0";
+    
+    add_property("compatible", compatible_root, sizeof(compatible_root));
     
     u32 address_cells = 1;
     add_property("#address-cells", &address_cells, sizeof(address_cells));
@@ -85,23 +92,50 @@ void build_device_tree() {
       u32 size_cells = 0;
       add_property("#size-cells", &size_cells, sizeof(size_cells));
       
-      // /cpus/PowerPC,750
-      create_node(/*nProps=*/5, /*nChildren=*/0);
+      // /cpus/PowerPC,G3
+      create_node(/*nProps=*/14, /*nChildren=*/0);
       {
-        const char *name = "PowerPC,750";
+        const char *name = "PowerPC,G3";
         add_property("name", name, strlen(name) + 1);
         
-        const char *dtype = "cpu";
-        add_property("device_type", dtype, strlen(dtype) + 1);
+        u32 reg[1] = { 0x00000000 };
+        add_property("reg", reg, sizeof(reg));
         
-        u32 clockFreq = 729000000; // Wii's Broadway CPU ~729MHz
-        add_property("clock-frequency", &clockFreq, sizeof(clockFreq));
+        const char *device_type = "cpu";
+        add_property("device_type", device_type, strlen(device_type) + 1);
         
-        u32 tbFreq = 60750000; // 243MHz / 4
-        add_property("timebase-frequency", &tbFreq, sizeof(tbFreq));
+        u32 clock_frequency = 729000000; // Wii's Broadway CPU ~729MHz
+        add_property("clock-frequency", &clock_frequency, sizeof(clock_frequency));
         
-        u32 busFreq = 243000000; // 729000000 / 3
-        add_property("bus-frequency", &busFreq, sizeof(busFreq));
+        u32 tb_frequency = 60750000; // 243MHz / 4
+        add_property("timebase-frequency", &tb_frequency, sizeof(tb_frequency));
+        
+        u32 bus_frequency = 243000000; // 729000000 / 3
+        add_property("bus-frequency", &bus_frequency, sizeof(bus_frequency));
+        
+        u32 cpu_version = 0x00087102;
+        add_property("cpu-version", &cpu_version, sizeof(cpu_version));
+        
+        u32 d_cache_size = 0x00008000;
+        add_property("d-cache-size", &d_cache_size, sizeof(d_cache_size));
+        
+        u32 i_cache_size = 0x00008000;
+        add_property("i-cache-size", &i_cache_size, sizeof(i_cache_size));
+        
+        u32 d_cache_block_size = 0x00000020;
+        add_property("d-cache-block-size", &d_cache_block_size, sizeof(d_cache_block_size));
+        
+        u32 i_cache_block_size = 0x00000020;
+        add_property("i-cache-block-size", &i_cache_block_size, sizeof(i_cache_block_size));
+        
+        u32 d_cache_sets = 0x00000080;
+        add_property("d-cache-sets", &d_cache_sets, sizeof(d_cache_sets));
+        
+        u32 i_cache_sets = 0x00000080;
+        add_property("i-cache-sets", &i_cache_sets, sizeof(i_cache_sets));
+        
+        u32 reservation_granularity = 0x00000020;
+        add_property("reservation-granularity", &reservation_granularity, sizeof(reservation_granularity));
       }
     }
     
@@ -123,7 +157,7 @@ void build_device_tree() {
     }
     
     // /hollywood
-    create_node(/*nProps=*/6, /*nChildren=*/6);
+    create_node(/*nProps=*/6, /*nChildren=*/7);
     {
       const char* name = "hollywood";
       add_property("name", name, strlen(name) + 1);
@@ -191,7 +225,28 @@ void build_device_tree() {
         add_property("interrupt-controller", NULL, 0);
       }
       
-      // /hollywood/usb@0d040000
+      // /hollywood/exi@0d006800
+      create_node(/*nProps=*/5, /*nChildren=*/0);
+      {
+        const char *name = "exi";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *compatible = "nintendo,hollywood-exi";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0d006800, 0x00000040
+        };
+        add_property("reg", reg, sizeof(reg));
+        
+        u32 interrupts = 4;
+        add_property("interrupts", &interrupts, sizeof(interrupts));
+        
+        u32 interrupt_parent = 0xFEAD0000;
+        add_property("interrupt-parent", &interrupt_parent, sizeof(interrupt_parent));
+      }
+      
+      // /hollywood/ehci@0d040000
       create_node(/*nProps=*/5, /*nChildren=*/0);
       {
         const char *name = "ehci";
@@ -306,7 +361,7 @@ void build_device_tree() {
         add_property("name", name, strlen(name) + 1);
         
         u32 kernel_header[2] = {
-          kernel_header_start, kernel_header_size
+          kHeaderAddr, kernel_header_size
         };
         add_property("Kernel-__HEADER", kernel_header, sizeof(kernel_header));
         
@@ -326,7 +381,7 @@ void build_device_tree() {
         add_property("Kernel-__DATA", kernel_data, sizeof(kernel_data));
         
         u32 kernel_symtab[2] = {
-          kernel_symtab_start, kernel_symtab_size
+          kSymtabAddr, kernel_symtab_size
         };
         add_property("Kernel-__SYMTAB", kernel_symtab, sizeof(kernel_symtab));
         
@@ -348,11 +403,19 @@ void build_device_tree() {
       const char *name = "options";
       add_property("name", name, strlen(name) + 1);
       
-      const char *boot_args = boot_args_command_line;
+      boot_args_t *boot_args_ptr = (boot_args_t *)boot_args_address;
+      const char *boot_args = boot_args_ptr->CommandLine;
       add_property("boot-args", boot_args, strlen(boot_args) + 1);
       
       const char *boot_command = "boot";
       add_property("boot-command", boot_command, strlen(boot_command) + 1);
+    }
+    
+    // /nvram
+    create_node(/*nProps=*/1, /*nChildren=*/0);
+    {
+      const char *name = "nvram";
+      add_property("name", name, strlen(name) + 1);
     }
   }
 }
