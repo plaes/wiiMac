@@ -174,3 +174,28 @@ size_t strcspn(const char *s1, const char *s2)
 	return len;
 }
 
+char *str_trim_spaces(char *str)
+{
+  if (!str) {
+    return NULL;
+  }
+  
+  // Handle leading
+  while (*str == ' ') {
+    str++;
+  }
+  
+  if (*str == '\0') {
+    return str;
+  }
+  
+  // Handle trailing
+  char *end = str + strlen(str) - 1;
+  while (end >= str && *end == ' ') {
+    end--;
+  }
+  
+  *(end + 1) = '\0';
+  
+  return str;
+}

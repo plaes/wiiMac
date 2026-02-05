@@ -14,9 +14,10 @@ Copyright (C) 2009		Andre Heider "dhewg" <dhewg@wiibrew.org>
 #include "ff.h"
 #include "diskio.h"
 
-u32 fat_mount(void);
+u32 fat_mount(u32 partition_start_sector);
 u32 fat_umount(void);
 u32 fat_clust2sect(u32 clust);
+u32 fat_get_partition_start_sector(void);
 
 #endif
 

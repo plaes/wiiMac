@@ -11,8 +11,9 @@ Copyright (C) 2009		Andre Heider "dhewg" <dhewg@wiibrew.org>
 #include "fat.h"
 
 static FATFS fatfs;
+static u32 partition_start = 0;
 
-u32 fat_mount(void) {
+u32 fat_mount(u32 partition_start_sector) {
 	DSTATUS stat;
 
 	f_mount(0, NULL);
@@ -24,8 +25,12 @@ u32 fat_mount(void) {
 
 	if (stat & STA_NOINIT)
 		return -2;
+  
+  if (f_mount(0, &fatfs) != FR_OK)
+    return -3;
 
-	return f_mount(0, &fatfs);
+  partition_start = partition_start_sector;
+	return 0;
 }
 
 u32 fat_umount(void) {
@@ -38,4 +43,6 @@ u32 fat_clust2sect(u32 clust) {
 	return clust2sect(&fatfs, clust);
 }
 
-
+u32 fat_get_partition_start_sector() {
+  return partition_start;
+}

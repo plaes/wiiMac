@@ -23,6 +23,6 @@ u32 kernel_data_size;
 
 u32 kernel_symtab_size;
 
-int load_mach_kernel();
+int decode_mach_kernel();
 
 #endif //MACHO_H

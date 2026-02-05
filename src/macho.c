@@ -112,7 +112,7 @@ static int load_segment(u32 foff, u32 fsize, u32 vmaddr, u32 vmsize);
 static int handle_lc_symtab(load_command_t *load_cmd);
 static int handle_lc_unixthread(load_command_t *load_cmd);
 
-int load_mach_kernel() {
+int decode_mach_kernel() {
     mach_header_t *header = (mach_header_t *)kLoadAddr;
 
     printf("\n");

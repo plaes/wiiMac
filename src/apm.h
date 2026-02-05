@@ -18,9 +18,9 @@ typedef struct APM_Entry {
   u8 _unused[432];        // 0x50
 } apm_entry_t __attribute__((aligned(32)));
 
-apm_entry_t found_partitions[64];
-int found_partitions_count = 0;
+apm_entry_t apm_found_partitions[64];
+int apm_found_partitions_count = 0;
 
-int find_partitions();
+int apm_find_partitions();
 
 #endif //APM_H

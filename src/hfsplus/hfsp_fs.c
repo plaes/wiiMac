@@ -8,6 +8,68 @@
 #include "blockiter.h"
 #include "unicode.h"
 #include "../string.h"
+#include "../bootmii_ppc.h"
+
+static int hfsp_resolve_path(volume *vol, const char *file_path, record *result_record) {
+  record r;
+  char component[256];
+  const char *start, *end;
+  
+  if (!file_path || !*file_path) {
+    return -1;
+  }
+  
+  // Skip leading slashes
+  start = file_path;
+  while (*start == '/') {
+    start++;
+  }
+  
+  // Start at root
+  if (record_init_root(&r, &vol->catalog) != 0) {
+    return -1;
+  }
+  
+  // Process each path component
+  while (*start) {
+    end = strchr(start, '/');
+    if (!end) {
+      end = start + strlen(start);
+    }
+    
+    // Copy component (with length check)
+    size_t length = end - start;
+    if (length == 0) {
+      start = end + 1;
+      continue; // Skip empty components (e.g., "//")
+    }
+    if (length >= sizeof(component)) {
+      return -1; // Component too long
+    }
+    memcpy(component, start, length);
+    component[length] = '\0';
+    
+    // Look up this component
+    if (record_init_string_parent(&r, &r, component) != 0) {
+      return -1;
+    }
+    
+    // Move past this component and any trailing slashes
+    start = end;
+    while (*start == '/') {
+      start++;
+    }
+    
+    // If start is not null, we're not at the end of the null-terminated path.
+    // If that's the case, and the current record type is a file, something is wrong.
+    if (*start && r.record.type != HFSP_FOLDER) {
+      return -1;
+    }
+  }
+  
+  *result_record = r;
+  return 0;
+}
 
 int hfsp_mount(volume *vol, UInt32 partition_offset) {
   return volume_open(vol, 0, partition_offset);
@@ -29,24 +91,21 @@ int hfsp_get_volume_name(volume *vol, char *buf, int buflen) {
   return 0;
 }
 
-int hfsp_read_root_file(volume *vol, const char *filename, void *buf, u32 maxsize) {
+int hfsp_read_file(volume *vol, const char *file_path, void *buf) {
   record r;
-  if (record_init_root(&r, &vol->catalog) != 0) {
+  if (hfsp_resolve_path(vol, file_path, &r) != 0) {
     return -1;
   }
-  if (record_init_string_parent(&r, &r, (char*)filename) != 0) {
-    return -1;
-  }
+  
   if (r.record.type != HFSP_FILE) {
     return -1;
   }
 
   hfsp_cat_file *file = &r.record.u.file;
   u32 filesize = (u32)file->data_fork.total_size;
-  if (filesize > maxsize) filesize = maxsize;
   
   u32 blksize = vol->blksize;
-  u32 num_blocks = (filesize + blksize - 1) / blksize;  // Round up
+  u32 num_blocks = (filesize + blksize - 1) / blksize; // Round up
   
   if (!volume_readfromfork(vol, buf, &file->data_fork, 0, num_blocks, HFSP_EXTENT_DATA, file->id)) {
     return -1;

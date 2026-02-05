@@ -64,8 +64,8 @@
 /---------------------------------------------------------------------------*/
 
 #include "ff.h"			/* FatFs configurations and declarations */
+#include "fat.h"
 #include "diskio.h"		/* Declarations of low level disk I/O functions */
-
 
 /*--------------------------------------------------------------------------
 
@@ -1370,7 +1370,7 @@ FRESULT auto_mount (	/* FR_OK(0): successful, !=0: any error occured */
 	FRESULT res;
 	BYTE drv, fmt, *tbl;
 	DSTATUS stat;
-	DWORD bsect, fsize, tsect, mclst;
+	DWORD partition_start_sector, bsect, fsize, tsect, mclst;
 	const char *p = *path;
 	FATFS *fs;
 
@@ -1417,16 +1417,23 @@ FRESULT auto_mount (	/* FR_OK(0): successful, !=0: any error occured */
 	if (chk_wp && (stat & STA_PROTECT))	/* Check write protection if needed */
 		return FR_WRITE_PROTECTED;
 #endif
-	/* Search FAT partition on the drive */
-	fmt = check_fs(fs, bsect = 0);		/* Check sector 0 as an SFD format */
-	if (fmt == 1) {						/* Not an FAT boot record, it may be patitioned */
-		/* Check a partition listed in top of the partition table */
-		tbl = &fs->win[MBR_Table + LD2PT(drv) * 16];	/* Partition table */
-		if (tbl[4]) {									/* Is the partition existing? */
-			bsect = LD_DWORD(&tbl[8]);					/* Partition offset in LBA */
-			fmt = check_fs(fs, bsect);					/* Check the partition */
-		}
-	}
+  partition_start_sector = fat_get_partition_start_sector();
+  if (partition_start_sector == 0) {
+    /* Search FAT partition on the drive */
+    fmt = check_fs(fs, bsect = 0);    /* Check SFD format at partition start sector */
+    if (fmt == 1) {            /* Not an FAT boot record, it may be patitioned */
+      /* Check a partition listed in top of the partition table */
+      tbl = &fs->win[MBR_Table + LD2PT(drv) * 16];  /* Partition table */
+      if (tbl[4]) {                  /* Is the partition existing? */
+        bsect = LD_DWORD(&tbl[8]);          /* Partition offset in LBA */
+        fmt = check_fs(fs, bsect);          /* Check the partition */
+      }
+    }
+  } else {
+    /* Skip search and use known partition offset */
+    bsect = partition_start_sector;
+    fmt = check_fs(fs, bsect);
+  }
 	if (fmt == 3) return FR_DISK_ERR;
 	if (fmt || LD_WORD(fs->win+BPB_BytsPerSec) != SS(fs))	/* No valid FAT patition is found */
 		return FR_NO_FILESYSTEM;

@@ -20,7 +20,6 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "ipc.h"
 #include "macho.h"
 #include "mini_ipc.h"
-#include "nandfs.h"
 #include "fat.h"
 #include "malloc.h"
 #include "diskio.h"
@@ -29,7 +28,6 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 #include "input.h"
 #include "console.h"
 #include "irq.h"
-#include "sha1.h"
 #include "hollywood.h"
 #include "apm.h"
 #include "hfsplus/hfsp_fs.h"
@@ -39,52 +37,92 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 
 static bool mini_version_too_old = true;
 static u32 mini_version = 0;
+
 static DSTATUS disk_stat = -1;
-static int selected_partition = -1;
+static int apm_fat_partition_index = -1;
+static int selected_boot_partition_index = -1;
 static char partition_names[64][255];
+
+static int vmode = VIDEO_640X480_NTSCp_YUV16;
+static char config_boot_args_command_line[256];
+
 static bool loading_kernel = false;
 static bool kernel_load_failed = false;
 static bool loaded_kernel = false;
+
 static int autoboot_ms = -1;
 static int autoboot_ms_threshold = 10000;
 
-static char ascii(char s) {
-	if(s < 0x20) return '.';
-	if(s > 0x7E) return '.';
-	return s;
+static void print_instructions() {
+  console_println("");
+  console_println("Insert an SD card formatted as Apple Partition Map");
+  console_println("containing an HFS+ formatted Mac OS X boot partition");
+  clear_remainder_reset_y();
 }
 
-void hexdump(void *d, int len) {
-	u8 *data;
-	int i, off;
-	data = (u8*)d;
-	for (off=0; off<len; off += 16) {
-
-		// Print address
-		void *addr = (void *)((u32)data + off);
-		printf("0x%08x  ", addr);
-
-		// Print hex interpretation
-		for (i=0; i<16; i++) {
-            if ((i+off)>=len) {
-                printf("   ");
-            } else {
-                printf("%02x ", data[off+i]);
-            }
-        }
-
-		printf(" ");
-
-		// Print ASCII interpretation
-		for(i=0; i<16; i++) {
-			if((i+off)>=len) {
-				printf(" ");
-			} else {
-				printf("%c", ascii(data[off+i]));
-			}
-		}
-		printf("\n");
-	}
+static void redraw_screen() {
+  console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
+  console_println("(c) 2025 Bryan Keller - @blk19_");
+  
+  console_println("");
+  
+  if (mini_version_too_old) {
+    console_println("The MINI version (%d.%0d) is too old. Required: %d.%0d", (mini_version >> 16), (mini_version & 0xFFFF), (MINIMUM_MINI_VERSION >> 16), (MINIMUM_MINI_VERSION & 0xFFFF));
+    console_println("Run the latest HackMii installer to resolve this issue");
+    clear_remainder_reset_y();
+    return;
+  }
+  
+  console_println("");
+  
+  if (disk_stat & STA_NODISK) {
+    console_println("No SD card detected");
+    print_instructions();
+    return;
+  }
+  
+  if (disk_stat & STA_NOINIT) {
+    console_println("Failed to read SD card");
+    print_instructions();
+    return;
+  }
+  
+  if (apm_found_partitions_count <= 0) {
+    console_println("No partitions found");
+    print_instructions();
+    return;
+  }
+  
+  console_println("Partitions:");
+  for (int i = 0; i < apm_found_partitions_count; i++) {
+    apm_entry_t partition = apm_found_partitions[i];
+    int current_partition_number = i + 1;
+    console_println("%c %d: %s     %s", current_partition_number == partition_number ? '*' : ' ', current_partition_number, partition.type, partition_names[i]);
+  }
+  
+  console_println("");
+  console_println("Boot args: %s", boot_args_command_line);
+  
+  if (autoboot_ms != -1) {
+    console_println("");
+    console_println("Booting from %s in %ds", partition_names[partition_number - 1], (autoboot_ms_threshold - autoboot_ms) / 1000);
+  }
+  
+  if (loading_kernel) {
+    console_println("");
+    console_println("Loading kernel...");
+  }
+  
+  if (kernel_load_failed) {
+    console_println("Failed to load kernel");
+  }
+  
+  if (loaded_kernel) {
+    console_println("");
+    console_println("Calling kernel...");
+  }
+  
+  clear_remainder_reset_y();
 }
 
 static int start_mach_kernel() {
@@ -104,80 +142,200 @@ static int start_mach_kernel() {
   return -1;
 }
 
-static void print_instructions() {
-  console_println("");
-  console_println("Insert an SD card formatted as Apple Partition Map");
-  console_println("containing an HFS+ formatted Mac OS X boot partition.");
-  clear_remainder_reset_y();
+static void update_boot_args_command_line() {
+  // We need to make sure we don't exceed 256 characters total
+  char truncated[242];
+  strlcpy(truncated, config_boot_args_command_line, sizeof(truncated));
+  sprintf(boot_args_command_line, "rd=disk0s%d %s", partition_number, truncated);
 }
 
-static void redraw_screen() {
-  console_println("wiiMac - A Mac OS X bootloader for the Nintendo Wii");
-  console_println("(c) 2025 Bryan Keller - @blk19_");
-  
-  console_println("");
-  
-  if (mini_version_too_old) {
-    console_println("The MINI version (%d.%0d) is too old. Required: %d.%0d.", (mini_version >> 16), (mini_version & 0xFFFF), (MINIMUM_MINI_VERSION >> 16), (MINIMUM_MINI_VERSION & 0xFFFF));
-    console_println("Run the latest HackMii installer to resolve this issue.");
-    clear_remainder_reset_y();
+static void configure_video() {
+  init_fb(vmode);
+  VIDEO_Init(vmode);
+  VIDEO_SetFrameBuffer(get_xfb());
+  VISetupEncoder();
+}
+
+static void process_config_key_value(const char* key, const char *value) {
+  if (strcmp(key, "video-mode") == 0) {
+    printf("Video mode: %s\n", value);
+    int new_vmode;
+    if (strcmp(value, "ntscp") == 0) {
+      new_vmode = VIDEO_640X480_NTSCp_YUV16;
+    } else if (strcmp(value, "ntsci") == 0) {
+      new_vmode = VIDEO_640X480_NTSCi_YUV16;
+    } else if (strcmp(value, "pal60") == 0) {
+      new_vmode = VIDEO_640X480_PAL60_YUV16;
+    } else if (strcmp(value, "pal50") == 0) {
+      new_vmode = VIDEO_640X480_PAL50_YUV16;
+    } else {
+      new_vmode = VIDEO_640X480_NTSCp_YUV16;
+      printf("Invalid video mode. Defaulting to ntscp.\n");
+    }
+    
+    if (new_vmode != vmode) {
+      vmode = new_vmode;
+      configure_video();
+    }
+  } else if (strcmp(key, "boot-args") == 0) {
+    printf("Boot args: %s\n", value);
+    strlcpy(config_boot_args_command_line, value, sizeof(config_boot_args_command_line));
+  } else {
+    printf("Unrecgonized config key\n.");
+  }
+}
+
+static void process_config_file(FIL file_pointer) {
+  size_t size = file_pointer.fsize;
+  if (size > 2048) {
+    printf("/wiiMac/config.txt is too large. Keep it under 2KB.\n");
     return;
   }
 
-  if (is_verbose_boot) {
-    console_println("Verbose boot enabled.");
-  } else {
-    console_println("");
+  char contents[size + 1];
+  u32 bytes_read;
+  if (f_read(&file_pointer, contents, size, &bytes_read) != FR_OK || bytes_read != size) {
+    printf("Failed to read /wiiMac/config.txt\n");
+    return;
+  }
+  contents[size] = '\0';
+  
+  char *position = contents;
+  char *end = position + size;
+  while (position <= end) {
+    // If we encounter the start of a comment or a new line character
+    if (*position == '#' || *position == '\n' || *position == '\r') {
+      // Increment the pointer to the next new line
+      position += strcspn(position, "\n\r") + 1;
+    } else {
+      // Handle config line
+      
+      // Get key up to '='
+      int key_length = strcspn(position, "=");
+      if (position + key_length > end) {
+        printf("Invalid config file 1.\n");
+        return;
+      }
+      char key[key_length + 1];
+      strlcpy(key, position, key_length + 1);
+      position += key_length + 1;
+      
+      // Get value after '='
+      int value_length = strcspn(position, "#\n\r");
+      if (position + value_length > end) {
+        printf("Invalid config file 2.\n");
+        return;
+      }
+      char value[value_length + 1];
+      strlcpy(value, position, value_length + 1);
+      position += value_length;
+      
+      process_config_key_value(str_trim_spaces(key), str_trim_spaces(value));
+    }
+  }
+}
+
+static void handle_disk_change() {
+  // If we have an MBR, try to read the config file from the first FAT partition
+  FIL file_pointer;
+  if (fat_mount(0) == FR_OK) {
+    printf("Reading config file at /wiiMac/config.txt...\n");
+    if (f_open(&file_pointer, "/wiiMac/config.txt", FA_READ) == FR_OK) {
+      process_config_file(file_pointer);
+    } else {
+      printf("Failed to open config file at /wiiMac/config.txt\n");
+    }
+    
+    fat_umount();
   }
   
-  console_println("");
-  
-  if (disk_stat & STA_NODISK) {
-    console_println("No SD card detected.");
-    print_instructions();
+  apm_find_partitions();
+  if (apm_found_partitions_count > 0) {
+    // Find boot-candidate HFS+ partitions
+    for (int i = 0; i < apm_found_partitions_count; i++) {
+      apm_entry_t partition = apm_found_partitions[i];
+      
+      if (apm_fat_partition_index == -1 && (strcmp(partition.type, "DOS_FAT_32") == 0 || strcmp(partition.type, "DOS_FAT_16") == 0)) {
+        apm_fat_partition_index = i;
+      }
+      
+      volume vol;
+      if (hfsp_mount(&vol, partition.startingSector) != 0) {
+        continue;
+      }
+      hfsp_get_volume_name(&vol, partition_names[i], 255);
+      hfsp_unmount(&vol);
+      if (selected_boot_partition_index == -1 && (strcmp(partition.type, "Apple_HFS") == 0 || strcmp(partition.type, "Apple_HFSX") == 0)) {
+        selected_boot_partition_index = i;
+      }
+    }
+    
+    if (selected_boot_partition_index != -1) {
+      autoboot_ms = 0;
+    }
+  }
+}
+
+static void decode_kernel() {
+  // Zero all memory leading up to the file load address
+  memset((void*)0x2FF, 0, kLoadAddr - 0x2FF);
+  if (decode_mach_kernel() == 0) {
+    loaded_kernel = true;
+  }
+}
+
+static void load_kernel_from_fat() {
+  if (apm_fat_partition_index == -1 || apm_fat_partition_index >= apm_found_partitions_count) {
     return;
   }
   
-  if (disk_stat & STA_NOINIT) {
-    console_println("Failed to read SD card.");
-    print_instructions();
+  printf("Loading /wiiMac/mach_kernel...\n");
+  
+  FIL file_pointer;
+  apm_entry_t partition = apm_found_partitions[apm_fat_partition_index];
+  
+  if (fat_mount(partition.startingSector) != FR_OK) {
+    printf("Failed to mount FAT partition.\n");
     return;
   }
   
-  if (found_partitions_count <= 0) {
-    console_println("No partitions found.");
-    print_instructions();
+  if (f_open(&file_pointer, "/wiiMac/mach_kernel", FA_READ) != FR_OK) {
+    printf("Failed to load /wiiMac/mach_kernel\n");
     return;
   }
   
-  console_println("Partitions:");
-  for (int i = 0; i < found_partitions_count; i++) {
-    apm_entry_t partition = found_partitions[i];
-    int partition_index = i + 1;
-    console_println("%c %d: %s     %s", partition_index == partition_number ? '*' : ' ', partition_index, partition.type, partition_names[i]);
+  u32 bytes_read;
+  if (f_read(&file_pointer, (void *)kLoadAddr, file_pointer.fsize, &bytes_read) != FR_OK) {
+    printf("Failed to load /wiiMac/mach_kernel\n");
+    return;
   }
   
-  if (autoboot_ms != -1) {
-    console_println("");
-    console_println("Booting from disk0s%d in %ds", partition_number, (autoboot_ms_threshold - autoboot_ms) / 1000);
+  f_close(&file_pointer);
+    
+  printf("Loaded /wiiMac/mach_kernel\n");
+  fat_umount();
+  decode_kernel();
+}
+
+static void load_kernel_from_hfs() {
+  volume vol;
+  apm_entry_t partition = apm_found_partitions[selected_boot_partition_index];
+  
+  printf("Loading /mach_kernel...\n");
+
+  if (hfsp_mount(&vol, partition.startingSector) != 0) {
+    printf("Failed to mount HFS+ partition.\n");
+    return;
   }
   
-  if (loading_kernel) {
-    console_println("");
-    console_println("Loading mach_kernel from root of disk0s%d...", partition_number);
+  if (hfsp_read_file(&vol, "/mach_kernel", (void *)kLoadAddr) == 0) {
+    printf("Failed to load /mach_kernel\n");
+    return;
   }
-  
-  if (kernel_load_failed) {
-    console_println("");
-    console_println("Failed to load mach_kernel from root of disk0s%d.", partition_number);
-  }
-  
-  if (loaded_kernel) {
-    console_println("");
-    console_println("Calling kernel...");
-  }
-  
-  clear_remainder_reset_y();
+
+  printf("Loaded /mach_kernel\n");
+  hfsp_unmount(&vol);
+  decode_kernel();
 }
 
 int main(void) {
@@ -191,13 +349,9 @@ int main(void) {
 	ipc_initialize();
 	ipc_slowping();
 
-	int vmode = VIDEO_640X480_NTSCp_YUV16;
-	init_fb(vmode);
-	VIDEO_Init(vmode);
-	VIDEO_SetFrameBuffer(get_xfb());
-	VISetupEncoder();
+  configure_video();
   
-  VI_DumpRegisters();
+//  VI_DumpRegisters();
   
   mini_version = ipc_getvers();
   mini_version_too_old = mini_version < MINIMUM_MINI_VERSION;
@@ -209,40 +363,24 @@ int main(void) {
     disk_stat = disk_initialize(0);
     if (disk_stat != prev_disk_stat) {
       autoboot_ms = -1;
-      selected_partition = -1;
+      selected_boot_partition_index = -1;
+      apm_fat_partition_index = -1;
       loading_kernel = false;
       kernel_load_failed = false;
       memset(partition_names, 0, 64*255);
       
-      find_partitions();
-      for (int i = 0; i < found_partitions_count; i++) {
-        apm_entry_t partition = found_partitions[i];
-        volume vol;
-        if (hfsp_mount(&vol, partition.startingSector) != 0) {
-          continue;
-        }
-        hfsp_get_volume_name(&vol, partition_names[i], 255);
-        hfsp_unmount(&vol);
-        if (selected_partition == -1 && (strcmp(partition.type, "Apple_HFS") == 0 || strcmp(partition.type, "Apple_HFSX") == 0)) {
-          selected_partition = i;
-        }
-      }
-      
-      if (selected_partition != -1) {
-        autoboot_ms = 0;
-      }
+      handle_disk_change();
     }
-    
     
     u16 input = input_read();
     bool load_kernel = false;
     switch (input) {
       case GPIO_POWER: {
         autoboot_ms = -1;
-        if (selected_partition != -1 && found_partitions_count > 0) {
+        if (selected_boot_partition_index != -1 && apm_found_partitions_count > 0) {
           loading_kernel = false;
           kernel_load_failed = false;
-          selected_partition = (selected_partition + 1) % found_partitions_count;
+          selected_boot_partition_index = (selected_boot_partition_index + 1) % apm_found_partitions_count;
         }
         break;
       }
@@ -253,36 +391,26 @@ int main(void) {
       }
         
       case GPIO_EJECT:
-        is_verbose_boot = !is_verbose_boot;
         break;
     }
     
-    partition_number = selected_partition + 1;
+    partition_number = selected_boot_partition_index + 1;
+    
+    update_boot_args_command_line();
     
     if (autoboot_ms >= autoboot_ms_threshold || load_kernel) {
       autoboot_ms = -1;
       loading_kernel = true;
       redraw_screen();
-      apm_entry_t partition = found_partitions[selected_partition];
-      volume vol;
-      if (hfsp_mount(&vol, partition.startingSector) == 0) {
-        printf("Load mach_kernel from sector: %lu\n", partition.startingSector);
-        if (hfsp_read_root_file(&vol, "mach_kernel", (void *)kLoadAddr, kLoadSize) > 0) {
-          hfsp_unmount(&vol);
-          printf("Loaded mach_kernel\n");
-          // Zero all memory leading up to the file load address
-          memset((void*)0x2FF, 0, kLoadAddr - 0x2FF);
-          if (load_mach_kernel() == 0) {
-            printf("Loaded mach_kernel\n");
-            loaded_kernel = true;
-          }
-        }
-      } else {
-        printf("Failed to mount HFS+ partition.\n");
+      
+      // Try to load override kernel from FAT partition first (/wiiMac/mach_kernel)
+      load_kernel_from_fat();
+      // Otherwise, load kernel from HFS+ partition (/mach_kernel)
+      if (!loaded_kernel) {
+        load_kernel_from_hfs();
       }
 
       if (!loaded_kernel) {
-        printf("Failed to load mach_kernel\n");
         loading_kernel = false;
         kernel_load_failed = true;
       }

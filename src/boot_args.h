@@ -47,7 +47,7 @@ typedef struct boot_args {
 } boot_args_t;
 
 int partition_number = -1;
-bool is_verbose_boot = false;
+char boot_args_command_line[256];
 
 void set_up_boot_args();
 
