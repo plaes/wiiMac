@@ -37,6 +37,7 @@ Copyright (C) 2025              Bryan Keller <kellerbryan19@gmail.com>
 
 #define MINIMUM_MINI_VERSION 0x00010003
 #define MAC_OS_X_SIGNATURE 0x4D4F5358
+#define MAX_BOOT_ARGS_COMMAND_LINE_ENTRIES 5
 
 static bool mini_version_too_old = true;
 static u32 mini_version = 0;
@@ -47,11 +48,21 @@ static int selected_boot_partition_index = -1;
 static char partition_names[64][255];
 
 static int vmode = VIDEO_640X480_NTSCp_YUV16;
-static char config_boot_args_command_line[256];
+char boot_args_command_line_entries[MAX_BOOT_ARGS_COMMAND_LINE_ENTRIES][256] = {
+  "", // from config file
+  "-v Force800x600=1",
+  "-v",
+  "-v -s",
+  "-v io=0xffff",
+};
+static int boot_args_index = 0;
 
 static bool loading_kernel = false;
 static bool kernel_load_failed = false;
 static bool loaded_kernel = false;
+
+static bool loading_kexts = false;
+static bool loaded_kexts = false;
 
 static int autoboot_ms = -1;
 static int autoboot_ms_threshold = 10000;
@@ -104,7 +115,12 @@ static void redraw_screen() {
   }
   
   console_println("");
-  console_println("Boot args: %s", boot_args_command_line);
+  if (boot_args_index == 0) {
+    console_println("Boot args (from /wiiMac/config.txt):");
+  } else {
+    console_println("Boot args (override %d):", boot_args_index - 1);
+  }
+  console_println("  %s", boot_args_command_line);
   
   if (autoboot_ms != -1) {
     console_println("");
@@ -120,7 +136,12 @@ static void redraw_screen() {
     console_println("Failed to load kernel");
   }
   
-  if (loaded_kernel) {
+  if (loading_kexts) {
+    console_println("");
+    console_println("Loading kernel extensions...");
+  }
+  
+  if (loaded_kernel && loaded_kexts) {
     console_println("");
     console_println("Calling kernel...");
   }
@@ -147,8 +168,8 @@ static int start_mach_kernel() {
 
 static void update_boot_args_command_line() {
   // We need to make sure we don't exceed 256 characters total
-  char truncated[242];
-  strlcpy(truncated, config_boot_args_command_line, sizeof(truncated));
+  char truncated[240];
+  strlcpy(truncated, boot_args_command_line_entries[boot_args_index], sizeof(truncated));
   sprintf(boot_args_command_line, "rd=disk0s%d %s", partition_number, truncated);
 }
 
@@ -181,8 +202,12 @@ static void process_config_key_value(const char* key, const char *value) {
       configure_video();
     }
   } else if (strcmp(key, "boot-args") == 0) {
-    printf("Boot args: %s\n", value);
-    strlcpy(config_boot_args_command_line, value, sizeof(config_boot_args_command_line));
+    if (strlen(value) < 240) {
+      printf("Boot args: %s\n", value);
+      strlcpy(boot_args_command_line_entries[0], value, sizeof(boot_args_command_line_entries[0]));
+    } else {
+      printf("boot-args value is too long. Keep it under 240 characters.");
+    }
   } else {
     printf("Unrecgonized config key\n.");
   }
@@ -205,28 +230,34 @@ static void process_config_file(FIL file_pointer) {
   
   char *position = contents;
   char *end = position + size;
-  while (position <= end) {
+  while (position < end) {
     // If we encounter the start of a comment or a new line character
     if (*position == '#' || *position == '\n' || *position == '\r') {
       // Increment the pointer to the next new line
-      position += strcspn(position, "\n\r") + 1;
+      size_t skip = strcspn(position, "\n\r");
+      if (position + skip >= end) {
+        // Reached end of file, break
+        break;
+      }
+      position += skip + 1;
     } else {
       // Handle config line
       
       // Get key up to '='
       int key_length = strcspn(position, "=");
-      if (position + key_length > end) {
-        printf("Invalid config file 1.\n");
-        return;
+      if (position + key_length >= end) {
+        // Reached end of file without finding '=', skip to end
+        break;
       }
       char key[key_length + 1];
       strlcpy(key, position, key_length + 1);
       position += key_length + 1;
       
       // Get value after '='
+      // strcspn will stop at #, \n, \r, or \0 (end of string)
       int value_length = strcspn(position, "#\n\r");
       if (position + value_length > end) {
-        printf("Invalid config file 2.\n");
+        printf("Invalid config file\n");
         return;
       }
       char value[value_length + 1];
@@ -282,6 +313,7 @@ static void handle_disk_change() {
 
 static void decode_kernel() {
   // Zero all memory leading up to the file load address
+  irq_shutdown();
   memset((void*)0x2FF, 0, KERNEL_FILE_LOAD_ADDRESS - 0x2FF);
   if (decode_mach_kernel() == 0) {
     loaded_kernel = true;
@@ -388,8 +420,13 @@ int main(void) {
         break;
       }
         
-      case GPIO_EJECT:
+      case GPIO_EJECT: {
+        boot_args_index += 1;
+        if (boot_args_index >= MAX_BOOT_ARGS_COMMAND_LINE_ENTRIES) {
+          boot_args_index = 0;
+        }
         break;
+      }
     }
     
     partition_number = selected_boot_partition_index + 1;
@@ -406,9 +443,9 @@ int main(void) {
         apm_entry_t partition = apm_found_partitions[apm_fat_partition_index];
         if (fat_mount(partition.startingSector) == FR_OK) {
           load_kernel_from_fat();
+        } else {
+          printf("Failed to mount FAT partition.\n");
         }
-      } else {
-        printf("Failed to mount FAT partition.\n");
       }
       
       // Otherwise, load kernel from HFS+ partition (/mach_kernel)
@@ -432,6 +469,9 @@ int main(void) {
     }
   }
   
+  loading_kexts = true;
+  redraw_screen();
+  
   // Load /S/L/E/System.kext (and its Plugins) from the boot partition.
   // This seems to be a dependency for other kexts, so it needs to be loaded.
   // Specifically, the IOKit.kext plugin seems important.
@@ -450,6 +490,9 @@ int main(void) {
       fat_umount();
     }
   }
+  
+  loaded_kexts = true;
+  redraw_screen();
 
   printf("\n");
 	printf("Setting up device tree and boot args...");
