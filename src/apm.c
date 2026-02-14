@@ -31,3 +31,7 @@ int apm_find_partitions() {
 
   return 0;
 }
+
+bool is_bootable(apm_entry_t partition) {
+  return strcmp(partition.type, "Apple_HFS") == 0 || strcmp(partition.type, "Apple_HFSX") == 0;
+}

@@ -107,18 +107,22 @@ static void redraw_screen() {
     return;
   }
   
-  console_println("Partitions:");
+  console_println("Bootable partitions:");
   for (int i = 0; i < apm_found_partitions_count; i++) {
     apm_entry_t partition = apm_found_partitions[i];
+    if (!is_bootable(partition)) {
+      continue;
+    }
+    
     int current_partition_number = i + 1;
-    console_println("%c %d: %s     %s", current_partition_number == partition_number ? '*' : ' ', current_partition_number, partition.type, partition_names[i]);
+    console_println("%c %s     %s", current_partition_number == partition_number ? '*' : ' ', partition.type, partition_names[i]);
   }
   
   console_println("");
   if (boot_args_index == 0) {
-    console_println("Boot args (from /wiiMac/config.txt):");
+    console_println("Boot args:");
   } else {
-    console_println("Boot args (override %d):", boot_args_index - 1);
+    console_println("Boot args (override %d):", boot_args_index);
   }
   console_println("  %s", boot_args_command_line);
   
@@ -300,7 +304,7 @@ static void handle_disk_change() {
       }
       hfsp_get_volume_name(&vol, partition_names[i], 255);
       hfsp_unmount(&vol);
-      if (selected_boot_partition_index == -1 && (strcmp(partition.type, "Apple_HFS") == 0 || strcmp(partition.type, "Apple_HFSX") == 0)) {
+      if (selected_boot_partition_index == -1 && is_bootable(partition)) {
         selected_boot_partition_index = i;
       }
     }
@@ -410,7 +414,13 @@ int main(void) {
         if (selected_boot_partition_index != -1 && apm_found_partitions_count > 0) {
           loading_kernel = false;
           kernel_load_failed = false;
-          selected_boot_partition_index = (selected_boot_partition_index + 1) % apm_found_partitions_count;
+          for (int i = 0; i < apm_found_partitions_count; i++) {
+            selected_boot_partition_index = (selected_boot_partition_index + 1) % apm_found_partitions_count;
+            apm_entry_t partition = apm_found_partitions[selected_boot_partition_index];
+            if (is_bootable(partition)) {
+              break;
+            }
+          }
         }
         break;
       }

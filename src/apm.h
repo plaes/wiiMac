@@ -22,5 +22,6 @@ apm_entry_t apm_found_partitions[64];
 int apm_found_partitions_count = 0;
 
 int apm_find_partitions();
+bool is_bootable(apm_entry_t partition);
 
 #endif //APM_H
