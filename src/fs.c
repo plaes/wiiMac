@@ -39,7 +39,7 @@ int fs_fat_get_file_metadata(void *ctx, const char *path, file_metadata_t *file_
     return -1;
   }
   
-  strlcpy(file_metadata->name, file_info.lfname, sizeof(file_metadata->name));
+  strlcpy(file_metadata->name, file_info.lfname[0] != 0 ? file_info.lfname : file_info.fname, sizeof(file_metadata->name));
   file_metadata->size = file_info.fsize;
   
   return 0;
@@ -61,8 +61,12 @@ int fs_fat_list_dir(void *ctx, const char *path, directory_entry_t *entries, u32
   }
   
   u32 count = 0;
-  while (count < max_entries && f_readdir(&directory_pointer, &file_info) == FR_OK && file_info.lfname[0] != 0) {
-    strlcpy(entries[count].name, file_info.lfname, sizeof(entries[count].name));
+  while (count < max_entries && f_readdir(&directory_pointer, &file_info) == FR_OK) {
+    char *file_name = file_info.lfname[0] != 0 ? file_info.lfname : file_info.fname;
+    if (file_name[0] == 0) {
+      break;
+    }
+    strlcpy(entries[count].name, file_name, sizeof(entries[count].name));
     entries[count].is_directory = (file_info.fattrib & AM_DIR) ? 1 : 0;
     count += 1;
   }

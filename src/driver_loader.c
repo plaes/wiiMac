@@ -17,6 +17,7 @@ void load_kexts_from_dir(void *ctx, const char *directory_path, read_file_f read
   for (u32 i = 0; i < entries_count; i++) {
     if (allocated_drivers_count >= MAX_DRIVERS) {
       printf("Driver limit reached (%d), skipping remaining drivers.\n", MAX_DRIVERS);
+      return;
     }
     
     directory_entry_t entry = entries[i];
