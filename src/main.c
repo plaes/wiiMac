@@ -120,11 +120,10 @@ static void redraw_screen() {
   
   console_println("");
   if (boot_args_index == 0) {
-    console_println("Boot args:");
+    console_println("Boot args: %s", boot_args_command_line);
   } else {
-    console_println("Boot args (override %d):", boot_args_index);
+    console_println("Boot args (override %d): %s", boot_args_index, boot_args_command_line);
   }
-  console_println("  %s", boot_args_command_line);
   
   if (autoboot_ms != -1) {
     console_println("");
@@ -382,6 +381,8 @@ int main(void) {
 
 	ipc_initialize();
 	ipc_slowping();
+  
+  input_init();
 
   configure_video();
   
@@ -431,6 +432,7 @@ int main(void) {
       }
         
       case GPIO_EJECT: {
+        autoboot_ms = -1;
         boot_args_index += 1;
         if (boot_args_index >= MAX_BOOT_ARGS_COMMAND_LINE_ENTRIES) {
           boot_args_index = 0;

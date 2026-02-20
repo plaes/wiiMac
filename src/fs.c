@@ -56,7 +56,6 @@ int fs_fat_list_dir(void *ctx, const char *path, directory_entry_t *entries, u32
   *entries_count = 0;
   
   if (f_opendir(&directory_pointer, path) != FR_OK) {
-    printf("Failed to open directory %s\n", path);
     return -1;
   }
   
