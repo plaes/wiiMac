@@ -68,12 +68,12 @@ void build_device_tree() {
     const char *model = "iMac,1";
     add_property("model", model, strlen(model) + 1);
     
-    const char compatible_root[] =
+    const char compatible[] =
     "iMac,1\0"
     "MacRISC\0"
     "PowerMac\0";
     
-    add_property("compatible", compatible_root, sizeof(compatible_root));
+    add_property("compatible", compatible, sizeof(compatible));
     
     u32 address_cells = 1;
     add_property("#address-cells", &address_cells, sizeof(address_cells));
@@ -158,7 +158,7 @@ void build_device_tree() {
     }
     
     // /hollywood
-    create_node(/*nProps=*/6, /*nChildren=*/7);
+    create_node(/*nProps=*/6, /*nChildren=*/9);
     {
       const char* name = "hollywood";
       add_property("name", name, strlen(name) + 1);
@@ -213,7 +213,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0c003000, 0x00000100
+          0x0c003000, 0x100
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -226,6 +226,21 @@ void build_device_tree() {
         add_property("interrupt-controller", NULL, 0);
       }
       
+      // /hollywood/ipc@0d000000
+      create_node(/*nProps=*/3, /*nChildren=*/0);
+      {
+        const char *name = "ipc";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *compatible = "nintendo,hollywood-ipc";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0d000000, 0x10
+        };
+        add_property("reg", reg, sizeof(reg));
+      }
+      
       // /hollywood/exi@0d006800
       create_node(/*nProps=*/5, /*nChildren=*/0);
       {
@@ -236,7 +251,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0d006800, 0x00000040
+          0x0d006800, 0x40
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -257,7 +272,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0d040000, 0x00000100
+          0x0d040000, 0x100
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -278,7 +293,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0d050000, 0x00000200
+          0x0d050000, 0x200
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -308,7 +323,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0d070000, 0x00000200,
+          0x0d070000, 0x200,
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -329,7 +344,7 @@ void build_device_tree() {
         add_property("compatible", compatible, strlen(compatible) + 1);
         
         u32 reg[2] = {
-          0x0d800030, 0x00000010
+          0x0d800030, 0x10
         };
         add_property("reg", reg, sizeof(reg));
         
@@ -346,6 +361,21 @@ void build_device_tree() {
         
         u32 interrupts = 14;
         add_property("interrupts", &interrupts, sizeof(interrupts));
+      }
+      
+      // /hollywood/control@0d800100
+      create_node(/*nProps=*/3, /*nChildren=*/0);
+      {
+        const char *name = "control";
+        add_property("name", name, strlen(name) + 1);
+        
+        const char *compatible = "nintendo,hollywood-control";
+        add_property("compatible", compatible, strlen(compatible) + 1);
+        
+        u32 reg[2] = {
+          0x0d800100, 0xa0
+        };
+        add_property("reg", reg, sizeof(reg));
       }
     }
     
@@ -367,7 +397,7 @@ void build_device_tree() {
         add_property("BootArgs", boot_args, sizeof(boot_args));
         
         u32 framebuffer[2] = {
-          0x01600000, 0x00200000
+          0x01600000, 0x200000
         };
         add_property("framebuffer", framebuffer, sizeof(framebuffer));
         
