@@ -95,6 +95,6 @@ void load_kext_from_dir(void *ctx, const char *directory_path, const char *bin_n
   // Lastly, handle plugin kexts
   char plugins_path[512];
   strlcpy(plugins_path, directory_path, sizeof(plugins_path));
-  strlcat(plugins_path, "/Contents/Plugins", sizeof(plugins_path));
+  strlcat(plugins_path, "/Contents/PlugIns", sizeof(plugins_path));
   load_kexts_from_dir(ctx, plugins_path, read_file, get_file_metadata, list_dir);
 }
