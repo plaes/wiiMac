@@ -252,7 +252,7 @@ After completing the initial setup process, you should be on the Mac OS X deskto
 
 #### System Optimization
 
-First, I'd highly recommend opening System Preferences > Display, and reducing the resolution back to 640x480 - the native output resolution of the Wii. Doing so will significantly improve visual quality.
+First, I'd highly recommend opening System Preferences > Display, and reducing the resolution back to 640x480 - doing so will significantly improve visual quality.
 
 Next, I’d recommend going to System Preferences > Dock, and reducing the size of the Dock or turning Dock hiding on - we need every bit of space we can get on the 640x480 video output.
 
@@ -266,6 +266,7 @@ After, reboot the system for changes to take effect.
 
 Useful software can be found at Archive.org and https://www.macintoshrepository.org. Here are some that I’ve tried:
 
+- [10.0.4 update](https://download.info.apple.com/Mac_OS_X/062-8263.20010621/1z/Mac_OS_X_10.0.4_UpdateCom.dmg.bin)
 - [Mac OS 9.1 System Folder to enable Classic apps to run](https://www.macintoshrepository.org/35900-mac-os-9-1-system-folder-for-mac-os-x-classic-environment-)
 - [Mac OS X 10.0 Developer Tools](https://www.macintoshrepository.org/15940-developer-tools-for-mac-os-x-10-0)
 - [Microsoft Office 2001](https://www.macintoshrepository.org/2731-microsoft-office-2001) (requires Classic)
