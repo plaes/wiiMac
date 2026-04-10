@@ -124,6 +124,7 @@ sudo parted /dev/sdX --script \
 # If hfsprogs is not installed:
 sudo apt install hfsprogs        # Debian / Ubuntu
 sudo pacman -S hfsprogs          # Arch
+sudo dnf install hfsplus-tools   # Fedora
 
 # then
 
